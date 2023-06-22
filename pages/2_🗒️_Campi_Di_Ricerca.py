@@ -16,9 +16,11 @@ col1, col2 = st.columns([1, 1])
 
 with col1:
     # Aggiungiamo il filtro per selezionare la macro-categoria
-    query = "MATCH (f:Field) WHERE toInteger(f.Field_Code) < 99 AND f.Name <> 'NaN' RETURN f.Name"
+    query = """MATCH (f:Field) WHERE toInteger(f.Field_Code) < 99 AND f.Name <> 'NaN'
+            RETURN toInteger(f.Field_Code) AS Field_Code, f.Name AS Field
+            """
     query_results = conn.query(query)
-    string_results = [record['f.Name'] for record in query_results]
+    string_results = [(record['Field_Code'], record['Field']) for record in query_results]
     selected_macro = st.selectbox('Seleziona la macro-categoria:', string_results)
 
 # Aggiungiamo l'info box con le informazioni dell'utente selezionato
