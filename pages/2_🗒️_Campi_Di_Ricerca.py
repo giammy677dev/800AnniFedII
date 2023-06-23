@@ -3,6 +3,9 @@ from streamlit_agraph import agraph, Node, Edge, Config
 import pandas as pd
 import plotly.graph_objects as go
 import numpy as np
+from stopwords import stopwords
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
 
 st.set_page_config(
     page_title="Campi di Ricerca",
@@ -153,6 +156,8 @@ with col4:
 
     agraph(nodes=nodes, edges=edges, config=config)
 
+# Costruiamo la tabella dei progetti appartenenti alla micro-categoria selezionata
+
 if not add_ongoing_projects:
     query = f"""MATCH (p:Project)-[]->(f:Field)
                 WHERE f.Field_Code = '{selected_micro_code}'
@@ -173,9 +178,16 @@ else:
             """
 
 query_results = conn.query(query)
-results = [(record['Titolo'], record['Fondi'], record['DataInizio'], record['DataFine'],
-            record['Finanziatore'], record['Gruppo'], record['Programma'])
-           for record in query_results]
+results = [(
+        'Non Definito' if record['Titolo'] == 'NaN' else record['Titolo'],
+        'Non Definito' if record['Fondi'] == 'NaN' else record['Fondi'],
+        'Non Definito' if record['DataInizio'] == 'NaN' else record['DataInizio'],
+        'Non Definito' if record['DataFine'] == 'NaN' else record['DataFine'],
+        'Non Definito' if record['Finanziatore'] == 'NaN' else record['Finanziatore'],
+        'Non Definito' if record['Gruppo'] == 'NaN' else record['Gruppo'],
+        'Non Definito' if record['Programma'] == 'NaN' else record['Programma'])
+    for record in query_results
+]
 
 columns = ['Titolo', 'Fondi Investiti (€)', 'Data di Inizio', 'Data di Fine', 'Finanziatore',
            'Gruppo di Finanziamento', 'Programma']
@@ -225,6 +237,30 @@ with col5:
     st.plotly_chart(fig_projects)
 with col6:
     st.plotly_chart(fig_funding)
+
+# Aggiungiamo la WordCloud per la micro-categoria selezionata
+query = f"""MATCH (p:Project)-[]->(f:Field)
+            WHERE f.Field_Code = '{selected_micro_code}'
+            WITH p.Abstract AS testo
+            WITH testo, SPLIT(toLower(testo), ' ') AS parole
+            UNWIND parole AS parola
+            WITH REPLACE(REPLACE(REPLACE(parola, ':', ''), ',', ''), '.', '') AS word_without_punckt, 
+                COUNT(DISTINCT testo) AS frequenza
+            WHERE frequenza > 1 AND NOT word_without_punckt IN {stopwords}
+            RETURN word_without_punckt AS parola, frequenza
+            ORDER BY frequenza DESC
+            LIMIT 83
+        """
+query_results = conn.query(query)
+frequency_results = [(record['parola'], record['frequenza']) for record in query_results]
+frequency_dictionary = {str(tupla[0]): int(tupla[1]) for tupla in frequency_results}
+wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(frequency_dictionary)
+
+# Visualizza il tag cloud in Streamlit
+fig, ax = plt.subplots()
+ax.imshow(wordcloud, interpolation='bilinear')
+ax.axis('off')
+st.pyplot(fig)
 
 # Explicitly close the connection
 conn.close()
