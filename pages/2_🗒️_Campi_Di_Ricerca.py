@@ -1,6 +1,11 @@
 from utils import st, conn, today
 from streamlit_agraph import agraph, Node, Edge, Config
 import pandas as pd
+import plotly.graph_objects as go
+import numpy as np
+from stopwords import stopwords
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
 
 st.set_page_config(
     page_title="Campi di Ricerca",
@@ -47,7 +52,7 @@ with col2:
 
 # Configurazione per Agraph
 config = Config(width=1000,
-                height=600,
+                height=450,
                 directed=True,
                 physics={"barnesHut": {"gravitationalConstant": -10000,
                                        "centralGravity": 0.5,
@@ -151,6 +156,8 @@ with col4:
 
     agraph(nodes=nodes, edges=edges, config=config)
 
+# Costruiamo la tabella dei progetti appartenenti alla micro-categoria selezionata
+
 if not add_ongoing_projects:
     query = f"""MATCH (p:Project)-[]->(f:Field)
                 WHERE f.Field_Code = '{selected_micro_code}'
@@ -171,9 +178,16 @@ else:
             """
 
 query_results = conn.query(query)
-results = [(record['Titolo'], record['Fondi'], record['DataInizio'], record['DataFine'],
-            record['Finanziatore'], record['Gruppo'], record['Programma'])
-           for record in query_results]
+results = [(
+        'Non Definito' if record['Titolo'] == 'NaN' else record['Titolo'],
+        'Non Definito' if record['Fondi'] == 'NaN' else record['Fondi'],
+        'Non Definito' if record['DataInizio'] == 'NaN' else record['DataInizio'],
+        'Non Definito' if record['DataFine'] == 'NaN' else record['DataFine'],
+        'Non Definito' if record['Finanziatore'] == 'NaN' else record['Finanziatore'],
+        'Non Definito' if record['Gruppo'] == 'NaN' else record['Gruppo'],
+        'Non Definito' if record['Programma'] == 'NaN' else record['Programma'])
+    for record in query_results
+]
 
 columns = ['Titolo', 'Fondi Investiti (€)', 'Data di Inizio', 'Data di Fine', 'Finanziatore',
            'Gruppo di Finanziamento', 'Programma']
@@ -181,6 +195,72 @@ columns = ['Titolo', 'Fondi Investiti (€)', 'Data di Inizio', 'Data di Fine', 
 df = pd.DataFrame(results, columns=columns)
 df.set_index('Titolo', inplace=True)
 st.write(df)
+
+# Istogrammi numero di progetti e fondi investiti nel tempo
+query = f"""MATCH (p:Project)-[]->(f:Field)
+            WHERE f.Field_Code = '{selected_micro_code}'
+            WITH p, p.Start_Year AS year, toInteger(p.Funding) AS funding
+            RETURN year, count(p) AS projectCount, sum(funding) AS totalFunding
+         """
+results = conn.query(query)
+columns = ['year', 'projectCount', 'totalFunding']
+
+# Mettiamo i risultati in un DataFrame
+df_projects = pd.DataFrame(results, columns=columns)
+
+# Creazione del grafico temporale per il numero di progetti anno per anno
+fig_projects = go.Figure(data=go.Bar(x=df_projects['year'], y=df_projects['projectCount']))
+
+# Personalizzazione del grafico dei progetti
+fig_projects.update_layout(
+    title='Numero di Progetti per Anno',
+    xaxis_title='Anno',
+    yaxis_title='Conteggio Progetti',
+    yaxis=dict(tickvals=np.arange(0, max(df_projects['projectCount']) + 1, 1))  # Valori dei tick come numeri interi
+)
+
+# Creazione del grafico temporale per il numero di fondi investiti anno per anno
+fig_funding = go.Figure(data=go.Bar(x=df_projects['year'], y=df_projects['totalFunding']))
+
+# Personalizzazione del grafico dei fondi investiti
+max_y = np.max(df_projects['totalFunding']) * 1.25
+fig_funding.update_layout(
+    title='Fondi Investiti per Anno',
+    xaxis_title='Anno',
+    yaxis_range=[0, max_y],
+    yaxis_title='Fondi Investiti (€)'
+)
+
+# Mostra i grafici su due colonne
+col5, col6 = st.columns([1, 1])
+with col5:
+    st.plotly_chart(fig_projects)
+with col6:
+    st.plotly_chart(fig_funding)
+
+# Aggiungiamo la WordCloud per la micro-categoria selezionata
+query = f"""MATCH (p:Project)-[]->(f:Field)
+            WHERE f.Field_Code = '{selected_micro_code}'
+            WITH p.Abstract AS testo
+            WITH testo, SPLIT(toLower(testo), ' ') AS parole
+            UNWIND parole AS parola
+            WITH REPLACE(REPLACE(REPLACE(parola, ':', ''), ',', ''), '.', '') AS word_without_punckt, 
+                COUNT(DISTINCT testo) AS frequenza
+            WHERE frequenza > 1 AND NOT word_without_punckt IN {stopwords}
+            RETURN word_without_punckt AS parola, frequenza
+            ORDER BY frequenza DESC
+            LIMIT 83
+        """
+query_results = conn.query(query)
+frequency_results = [(record['parola'], record['frequenza']) for record in query_results]
+frequency_dictionary = {str(tupla[0]): int(tupla[1]) for tupla in frequency_results}
+wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(frequency_dictionary)
+
+# Visualizza il tag cloud in Streamlit
+fig, ax = plt.subplots()
+ax.imshow(wordcloud, interpolation='bilinear')
+ax.axis('off')
+st.pyplot(fig)
 
 # Explicitly close the connection
 conn.close()
