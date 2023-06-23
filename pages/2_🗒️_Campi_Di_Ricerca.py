@@ -5,11 +5,11 @@ from streamlit_agraph import agraph, Node, Edge, Config
 
 st.set_page_config(
     page_title="Campi di Ricerca",
-    page_icon="️📊",
+    page_icon="️📚",
     layout="wide"
 )
 
-st.title('🌍 Campi di Ricerca')
+st.title('📚 Campi di Ricerca')
 
 st.write('''In questa sezione bla bla bla.
         ''')
