@@ -163,9 +163,16 @@ query = f"""MATCH (r:Researcher)-[rs:Research]->(p:Project) WHERE r.Name = '{sel
         """
 
 query_results = conn.query(query)
-project_results = [(record['Titolo'], record['Fondi'], record['DataInizio'], record['DataFine'],
-                    record['Finanziatore'], record['Gruppo'], record['Programma'])
-                    for record in query_results]
+project_results = [(
+        'Non Definito' if record['Titolo'] == 'NaN' else record['Titolo'],
+        'Non Definito' if record['Fondi'] == 'NaN' else record['Fondi'],
+        'Non Definito' if record['DataInizio'] == 'NaN' else record['DataInizio'],
+        'Non Definito' if record['DataFine'] == 'NaN' else record['DataFine'],
+        'Non Definito' if record['Finanziatore'] == 'NaN' else record['Finanziatore'],
+        'Non Definito' if record['Gruppo'] == 'NaN' else record['Gruppo'],
+        'Non Definito' if record['Programma'] == 'NaN' else record['Programma'])
+    for record in query_results
+]
 
 columns = ['Titolo', 'Fondi Investiti (€)', 'Data di Inizio', 'Data di Fine', 'Finanziatore',
            'Gruppo di Finanziamento', 'Programma']
