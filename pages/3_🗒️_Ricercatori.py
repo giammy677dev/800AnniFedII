@@ -4,11 +4,11 @@ import pandas as pd
 
 st.set_page_config(
     page_title="Ricercatori",
-    page_icon="️📊",
+    page_icon="️🔍",
     layout="wide"
 )
 
-st.title('🌍 Ricercatori')
+st.title('🔍 Ricercatori')
 
 st.write('''In questa sezione bla bla bla.
         ''')
@@ -23,7 +23,7 @@ with col1:
     string_results = [record['r.Name'] for record in query_results]
     selected_researcher = st.selectbox('Seleziona il ricercatore:', string_results)
 
-# Aggiungiamo l'info box con le informazioni dell'utente selezionato
+# Aggiungiamo l'info box con le informazioni del ricercatore selezionato
 with col2:
     query = f"MATCH (r:Researcher)-[rs:Research]->(p:Project) WHERE r.Name = '{selected_researcher}' return p.Funding"
     query_results = conn.query(query)
@@ -38,10 +38,10 @@ with col2:
                 {}
                 {}
             '''.format(
-                f'<p style="color: white;"><b style="color: #00acee;">Numero di Progetti: </b>{len(funding_results)} </p>',
-                f'<p style="color: white;"><b style="color: #00acee;">Fondi totali: </b> {sum(funding_results)} €</p>',
-                f'<p style="color: white;"><b style="color: #00acee;">Fondi Medi: </b> {round(sum(funding_results)/len(funding_results),2)} €</p>' if
-                len(funding_results) > 1 else f'<p style="color: white;"><b style="color: #00acee;"></p>'
+                f'<p style="color: white;"><b style="color: #3e8ad2;">Numero di Progetti: </b>{len(funding_results)} </p>',
+                f'<p style="color: white;"><b style="color: #3e8ad2;">Fondi totali: </b> {sum(funding_results)} €</p>',
+                f'<p style="color: white;"><b style="color: #3e8ad2;">Fondi Medi: </b> {round(sum(funding_results)/len(funding_results),2)} €</p>' if
+                len(funding_results) > 1 else f'<p style="color: white;"><b style="color: #3e8ad2;"></p>'
             ),
             unsafe_allow_html=True
         )
