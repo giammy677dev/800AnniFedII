@@ -1,11 +1,9 @@
-from utils import st, conn
-from py2neo import Graph
-from pyvis.network import Network
+from utils import st, conn, today
 from streamlit_agraph import agraph, Node, Edge, Config
 
 st.set_page_config(
     page_title="Campi di Ricerca",
-    page_icon="️📊",
+    page_icon="📊",
     layout="wide"
 )
 
@@ -39,7 +37,6 @@ with col2:
             """
     query_results = conn.query(query)
     micro_fields_results = [(record['Field_Code'], record['Name']) for record in query_results]
-    # micro_fields_results.insert(0, "---") # Aggiungi un valore "Null" come primo elemento
     selected_micro_name = st.selectbox('Seleziona la micro-categoria:', [name[1] for name in micro_fields_results])
     # Trova il Field_Code corrispondente al campo selezionato
     selected_micro_code = None
@@ -64,137 +61,94 @@ nodes = []
 edges = []
 ids = []
 
-if selected_micro_name == '---':
-    query = f"""MATCH (r:Researcher)-[]->(p:Project)-[]->(f:Field)<-[]-(o:Organization)-[]->(p:Project)
-                WHERE f.Field_Code = '{selected_macro_code}'
-                RETURN r AS Ricercatore, p AS Progetto, f AS Campo, o AS Organizzazione
-                LIMIT 100
-            """
+# Definizione dei colori e delle etichette della legenda
+colors = ['green', 'yellow']
+labels = ['Campo di Ricerca', 'Progetto']
+
+# Layout a due colonne
+col3, col4 = st.columns([1, 3])
+with col3:
+    # Definiamo i valori booleani per filtrare il grafo
+    st.subheader('Filtri')
+    add_researchers = st.checkbox('Visualizza i Ricercatori', key='researchers')
+    add_ongoing_projects = st.checkbox('Visualizza solo i Progetti in corso', key='ongoing_projects')
+
+    st.divider()
+
+    # Creazione della legenda
+    st.subheader('Legenda')
+    if add_researchers:
+        colors.append('grey')
+        labels.append('Ricercatore')
+
+    for color, label in zip(colors, labels):
+        st.markdown(f'<span style="color:{color}">●</span> {label}', unsafe_allow_html=True)
+
+
+with col4:
+    if not add_ongoing_projects:
+        query = f"""MATCH (r:Researcher)-[]->(p:Project)-[]->(f:Field)
+                        WHERE f.Field_Code = '{selected_micro_code}'
+                        RETURN f AS Campo, p AS Progetto, r AS Ricercatore
+                    """
+    else:
+        query = f"""MATCH (r:Researcher)-[]->(p:Project)-[]->(f:Field)
+                                WHERE f.Field_Code = '{selected_micro_code}' AND 
+                                datetime({{year: toInteger(split(p.End_Date, '/')[2]),
+                                month: toInteger(split(p.End_Date, '/')[1]),
+                                day: toInteger(split(p.End_Date, '/')[0])}})
+                                > datetime('{today}')
+                                RETURN f AS Campo, p AS Progetto, r AS Ricercatore
+                            """
     query_results = conn.query(query)
-    results = [(record['Ricercatore'], record['Progetto'], record['Campo'], record['Organizzazione']) for record in query_results]
+    results = [(record['Campo'], record['Progetto'], record['Ricercatore']) for record in query_results]
 
     for record in results:
-        researcher = record[0]
-        if researcher.element_id not in ids:
-            ids.append(researcher.element_id)
-            nodes.append(Node(id=researcher.element_id,
-                              label=researcher["Name"],
-                              title=researcher["Name"],
-                              size=30,
-                              color='grey')
+        field = record[0]
+        if field.element_id not in ids:
+            ids.append(field.element_id)
+            nodes.append(Node(id=field.element_id,
+                              title=field["Name"],
+                              size=15,
+                              color='green')
                          )
 
         project = record[1]
         if project.element_id not in ids:
             ids.append(project.element_id)
             nodes.append(Node(id=project.element_id,
-                              label=project["Title"],
                               title=project["Title"],
-                              size=30,
+                              size=10,
                               color='yellow')
                          )
-
-        field = record[2]
-        if field.element_id not in ids:
-            ids.append(field.element_id)
-            nodes.append(Node(id=field.element_id,
-                              label=field["Name"],
-                              title=field["Name"],
-                              size=30,
-                              color='green')
-                         )
-        organization = record[3]
-        if organization.element_id not in ids:
-            ids.append(organization.element_id)
-            nodes.append(Node(id=organization.element_id,
-                              label=organization["Name"],
-                              title=organization["Name"],
-                              size=30,
-                              color='blue')
-                         )
-
-        edges.append(Edge(source=researcher.element_id,
-                          label="Ricerca",
-                          target=project.element_id,
-                          color='black'
-                          )
-                     )
 
         edges.append(Edge(source=project.element_id,
                           label="Riguarda",
                           target=field.element_id,
-                          color='black'
+                          color='black',
+                          font={'size': 10}
                           )
                      )
 
-        edges.append(Edge(source=organization.element_id,
-                          label="Studia",
-                          target=field.element_id,
-                          color='black'
-                          )
-                     )
+        if add_researchers:
+            researcher = record[2]
+            if researcher.element_id not in ids:
+                ids.append(researcher.element_id)
+                nodes.append(Node(id=researcher.element_id,
+                                  title=researcher["Name"],
+                                  size=8,
+                                  color='grey')
+                             )
 
-        edges.append(Edge(source=organization.element_id,
-                          label="Finanzia",
-                          target=project.element_id,
-                          color='black'
-                          )
-                     )
-else:
-    query = f"""MATCH (r:Researcher)-[]->(p:Project)-[]->(f:Field)<-[]-(o:Organization)-[]->(p:Project)
-                    WHERE f.Field_Code = '{selected_micro_code}'
-                    RETURN r AS Ricercatore, p AS Progetto, f AS Campo, o AS Organizzazione
-                    LIMIT 100
-                """
-    query_results = conn.query(query)
-    results = [(record['Ricercatore'], record['Progetto'], record['Campo'], record['Organizzazione']) for record in
-               query_results]
-
-    for record in results:
-        researcher = record[0]
-        if researcher.element_id not in ids:
-            ids.append(researcher.element_id)
-            nodes.append(Node(id=researcher.element_id,
-                              label=researcher["Name"],
-                              title=researcher["Name"],
-                              size=30,
-                              color='grey')
+            edges.append(Edge(source=researcher.element_id,
+                              label="Ricerca",
+                              target=project.element_id,
+                              color='black',
+                              font={'size': 10}
+                              )
                          )
 
-        project = record[1]
-        if project.element_id not in ids:
-            ids.append(project.element_id)
-            nodes.append(Node(id=project.element_id,
-                              label=project["Title"],
-                              title=project["Title"],
-                              size=30,
-                              color='yellow')
-                         )
-
-        field = record[2]
-        if field.element_id not in ids:
-            ids.append(field.element_id)
-            nodes.append(Node(id=field.element_id,
-                              label=field["Name"],
-                              title=field["Name"],
-                              size=30,
-                              color='green')
-                         )
-
-        edges.append(Edge(source=researcher.element_id,
-                          label="Ricerca",
-                          target=project.element_id,
-                          color='black'
-                          )
-                     )
-        edges.append(Edge(source=project.element_id,
-                          label="Riguarda",
-                          target=field.element_id,
-                          color='black'
-                          )
-                     )
-
-agraph(nodes=nodes, edges=edges, config=config)
+    agraph(nodes=nodes, edges=edges, config=config)
 
 # Explicitly close the connection
 conn.close()

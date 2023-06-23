@@ -1,6 +1,8 @@
 from neo4j import GraphDatabase
 import streamlit as st
+from datetime import date
 
+today = date.today()
 
 class Neo4jConnection:
     def __init__(self, uri, user, pwd):
