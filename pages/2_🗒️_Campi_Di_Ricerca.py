@@ -1,5 +1,6 @@
 from utils import st, conn, today
 from streamlit_agraph import agraph, Node, Edge, Config
+import pandas as pd
 
 st.set_page_config(
     page_title="Campi di Ricerca",
@@ -149,6 +150,37 @@ with col4:
                          )
 
     agraph(nodes=nodes, edges=edges, config=config)
+
+if not add_ongoing_projects:
+    query = f"""MATCH (p:Project)-[]->(f:Field)
+                WHERE f.Field_Code = '{selected_micro_code}'
+                RETURN p.Title AS Titolo, p.Funding as Fondi, p.Start_Date AS DataInizio,
+                        p.End_Date as DataFine, p.Funder as Finanziatore, p.Funder_Group as Gruppo,
+                        p.Program AS Programma
+            """
+else:
+    query = f"""MATCH (p:Project)-[]->(f:Field)
+                WHERE f.Field_Code = '{selected_micro_code}' AND 
+                        datetime({{year: toInteger(split(p.End_Date, '/')[2]),
+                        month: toInteger(split(p.End_Date, '/')[1]),
+                        day: toInteger(split(p.End_Date, '/')[0])}})
+                        > datetime('{today}')
+                RETURN p.Title AS Titolo, p.Funding as Fondi, p.Start_Date AS DataInizio,
+                        p.End_Date as DataFine, p.Funder as Finanziatore, p.Funder_Group as Gruppo,
+                        p.Program AS Programma
+            """
+
+query_results = conn.query(query)
+results = [(record['Titolo'], record['Fondi'], record['DataInizio'], record['DataFine'],
+            record['Finanziatore'], record['Gruppo'], record['Programma'])
+           for record in query_results]
+
+columns = ['Titolo', 'Fondi Investiti (€)', 'Data di Inizio', 'Data di Fine', 'Finanziatore',
+           'Gruppo di Finanziamento', 'Programma']
+
+df = pd.DataFrame(results, columns=columns)
+df.set_index('Titolo', inplace=True)
+st.write(df)
 
 # Explicitly close the connection
 conn.close()
