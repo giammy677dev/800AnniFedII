@@ -6,6 +6,8 @@ import numpy as np
 from stopwords import stopwords
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
+import pydeck as pdk
+from geopy.geocoders import Nominatim
 
 st.set_page_config(
     page_title="Campi di Ricerca",
@@ -261,6 +263,88 @@ fig, ax = plt.subplots()
 ax.imshow(wordcloud, interpolation='bilinear')
 ax.axis('off')
 st.pyplot(fig)
+
+st.write("-------------------------------------------------------------")
+st.header("Mappa geografica")
+st.write("Mappa geografica per visualizzare le Città che hanno interagito maggiormente nel micro-campo precedentemente "
+         "selezionato. ")
+
+# Query per conteggio macro-categorie
+query = f"""
+MATCH (f:Field)-[r1]-(p:Project)-[r2]-(o:Organization) 
+WHERE f.Field_Code = '{selected_micro_code}' AND o.Name <> 'University of Naples Federico II'
+RETURN o.City AS City, count(p) as Conteggio_Progetti, o.Name as Nome_Organizzazione
+ORDER BY Conteggio_Progetti DESC
+"""
+
+# Esecuzione della query
+query_results = conn.query(query)
+
+# Creazione di un DataFrame dai risultati della query
+city_data = pd.DataFrame(query_results, columns=['City', 'Conteggio_Progetti', 'Nome_Organizzazione'])
+
+# Creazione di un'istanza del geocoder Nominatim
+geolocator = Nominatim(user_agent="my_geocoder")
+
+# Ottenimento delle coordinate geografiche per ogni città
+city_data['Latitude'] = np.nan
+city_data['Longitude'] = np.nan
+
+for index, row in city_data.iterrows():
+    city_name = row['City']
+    location = geolocator.geocode(city_name)
+    if location:
+        latitude = location.latitude
+        longitude = location.longitude
+        city_data.at[index, 'Latitude'] = latitude
+        city_data.at[index, 'Longitude'] = longitude
+
+# Creazione del DataFrame chart_data per la visualizzazione sulla mappa
+chart_data = city_data[['Latitude', 'Longitude', 'Conteggio_Progetti', 'Nome_Organizzazione']].copy()
+
+# Converti il DataFrame in un elenco di dizionari
+chart_data_dict = chart_data.to_dict('records')
+
+# Preparo il layer per l'istogramma che deve comparire nel grafico
+layerIstogramma = pdk.Layer(
+    'ColumnLayer',
+    data=chart_data_dict,
+    get_position='[Longitude, Latitude]',
+    get_elevation='Conteggio_Progetti',
+    elevation_scale=10000,
+    get_color='[200, 30, 0, 100]',
+    radius=7000,
+    pickable=True,
+    auto_highlight=True,
+    extruded=True
+)
+
+# Preparo il layer per l'area col raggio specificato
+layerArea = pdk.Layer(
+    'ScatterplotLayer',
+    data=chart_data_dict,
+    get_position='[Longitude, Latitude]',
+    get_color='[200, 200, 0, 25]',
+    get_radius=50000
+)
+
+# Creazione della mappa interattiva
+st.pydeck_chart(
+    pdk.Deck(
+        map_style=None,
+        initial_view_state=pdk.ViewState(
+            latitude=42.41183986816765,
+            longitude=12.865247589554036,
+            zoom=5,
+            pitch=50,
+        ),
+        layers=[layerIstogramma, layerArea],
+        tooltip={
+            "html": "<b>Nome Organizzazione: </b> {Nome_Organizzazione} <br />"
+                    "<b>Numero progetti: </b> {Conteggio_Progetti} <br />"
+        }
+    )
+)
 
 # Explicitly close the connection
 conn.close()
