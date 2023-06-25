@@ -8,6 +8,7 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import pydeck as pdk
 from geopy.geocoders import Nominatim
+import re
 
 st.set_page_config(
     page_title="Campi di Ricerca",
@@ -251,11 +252,24 @@ query = f"""MATCH (p:Project)-[]->(f:Field)
             WHERE frequenza > 1 AND NOT word_without_punckt IN {stopwords}
             RETURN word_without_punckt AS parola, frequenza
             ORDER BY frequenza DESC
-            LIMIT 83
         """
 query_results = conn.query(query)
 frequency_results = [(record['parola'], record['frequenza']) for record in query_results]
-frequency_dictionary = {str(tupla[0]): int(tupla[1]) for tupla in frequency_results}
+
+frequency_dictionary = {}
+for tupla in frequency_results:
+    parola = str(tupla[0])
+    frequenza = int(tupla[1])
+
+    # Rimuovi eventuali caratteri di nuova riga dal testo
+    parola = re.sub(r'\n', ' ', parola)
+
+    # Aggiungi la parola e la sua frequenza al dizionario
+    if parola in frequency_dictionary:
+        frequency_dictionary[parola] += frequenza
+    else:
+        frequency_dictionary[parola] = frequenza
+
 wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(frequency_dictionary)
 
 # Visualizza il tag cloud in Streamlit
@@ -266,85 +280,243 @@ st.pyplot(fig)
 
 st.write("-------------------------------------------------------------")
 st.header("Mappa geografica")
-st.write("Mappa geografica per visualizzare le Città che hanno interagito maggiormente nel micro-campo precedentemente "
+st.write("Mappa geografica per visualizzare le città che hanno interagito maggiormente nel micro-campo precedentemente "
          "selezionato. ")
 
 # Query per conteggio macro-categorie
-query = f"""
-MATCH (f:Field)-[r1]-(p:Project)-[r2]-(o:Organization) 
-WHERE f.Field_Code = '{selected_micro_code}' AND o.Name <> 'University of Naples Federico II'
-RETURN o.City AS City, count(p) as Conteggio_Progetti, o.Name as Nome_Organizzazione
-ORDER BY Conteggio_Progetti DESC
-"""
-
-# Esecuzione della query
+query = f"""MATCH (f:Field)-[r1]-(p:Project)-[r2]-(o:Organization) 
+            WHERE f.Field_Code = '{selected_micro_code}' AND o.Name <> 'University of Naples Federico II'
+            RETURN o.City AS City, count(p) as Conteggio_Progetti, o.Name as Nome_Organizzazione
+            ORDER BY Conteggio_Progetti DESC
+        """
 query_results = conn.query(query)
 
 # Creazione di un DataFrame dai risultati della query
 city_data = pd.DataFrame(query_results, columns=['City', 'Conteggio_Progetti', 'Nome_Organizzazione'])
 
-# Creazione di un'istanza del geocoder Nominatim
-geolocator = Nominatim(user_agent="my_geocoder")
-
-# Ottenimento delle coordinate geografiche per ogni città
-city_data['Latitude'] = np.nan
-city_data['Longitude'] = np.nan
-
-for index, row in city_data.iterrows():
-    city_name = row['City']
-    location = geolocator.geocode(city_name)
-    if location:
-        latitude = location.latitude
-        longitude = location.longitude
-        city_data.at[index, 'Latitude'] = latitude
-        city_data.at[index, 'Longitude'] = longitude
-
-# Creazione del DataFrame chart_data per la visualizzazione sulla mappa
-chart_data = city_data[['Latitude', 'Longitude', 'Conteggio_Progetti', 'Nome_Organizzazione']].copy()
-
-# Converti il DataFrame in un elenco di dizionari
-chart_data_dict = chart_data.to_dict('records')
-
-# Preparo il layer per l'istogramma che deve comparire nel grafico
-layerIstogramma = pdk.Layer(
-    'ColumnLayer',
-    data=chart_data_dict,
-    get_position='[Longitude, Latitude]',
-    get_elevation='Conteggio_Progetti',
-    elevation_scale=10000,
-    get_color='[200, 30, 0, 100]',
-    radius=7000,
-    pickable=True,
-    auto_highlight=True,
-    extruded=True
-)
-
-# Preparo il layer per l'area col raggio specificato
-layerArea = pdk.Layer(
-    'ScatterplotLayer',
-    data=chart_data_dict,
-    get_position='[Longitude, Latitude]',
-    get_color='[200, 200, 0, 25]',
-    get_radius=50000
-)
 
 # Creazione della mappa interattiva
-st.pydeck_chart(
-    pdk.Deck(
-        map_style=None,
-        initial_view_state=pdk.ViewState(
-            latitude=42.41183986816765,
-            longitude=12.865247589554036,
-            zoom=5,
-            pitch=50,
+@st.cache_data
+def map_creation(micro_code):
+    if micro_code is not None:
+        # Creazione di un'istanza del geocoder Nominatim
+        geolocator = Nominatim(user_agent="my_geocoder")
+
+        # Ottenimento delle coordinate geografiche per ogni città
+        city_data['Latitude'] = np.nan
+        city_data['Longitude'] = np.nan
+
+        for index, row in city_data.iterrows():
+            city_name = row['City']
+            location = geolocator.geocode(city_name)
+            if location:
+                latitude = location.latitude
+                longitude = location.longitude
+                city_data.at[index, 'Latitude'] = latitude
+                city_data.at[index, 'Longitude'] = longitude
+
+        # Creazione del DataFrame chart_data per la visualizzazione sulla mappa
+        chart_data = city_data[['Latitude', 'Longitude', 'Conteggio_Progetti', 'Nome_Organizzazione']].copy()
+
+        # Converti il DataFrame in un elenco di dizionari
+        chart_data_dict = chart_data.to_dict('records')
+
+        # Preparo il layer per l'istogramma che deve comparire nel grafico
+        layerIstogramma = pdk.Layer(
+            'ColumnLayer',
+            data=chart_data_dict,
+            get_position='[Longitude, Latitude]',
+            get_elevation='Conteggio_Progetti',
+            elevation_scale=10000,
+            get_color='[200, 30, 0, 100]',
+            radius=7000,
+            pickable=True,
+            auto_highlight=True,
+            extruded=True
+        )
+
+        # Preparo il layer per l'area col raggio specificato
+        layerArea = pdk.Layer(
+            'ScatterplotLayer',
+            data=chart_data_dict,
+            get_position='[Longitude, Latitude]',
+            get_color='[200, 200, 0, 25]',
+            get_radius=50000
+        )
+
+        st.pydeck_chart(
+            pdk.Deck(
+                map_style=None,
+                initial_view_state=pdk.ViewState(
+                    latitude=42.41183986816765,
+                    longitude=12.865247589554036,
+                    zoom=5,
+                    pitch=50,
+                ),
+                layers=[layerIstogramma, layerArea],
+                tooltip={
+                    "html": "<b>Nome Organizzazione: </b> {Nome_Organizzazione} <br />"
+                            "<b>Numero progetti: </b> {Conteggio_Progetti} <br />"
+                }
+            )
+        )
+
+
+map_creation(selected_micro_code)
+
+# Selezioniamo il singolo progetto della micro-categoria selezionata
+st.write("-------------------------------------------------------------")
+st.header("Seleziona Progetto Microcategoria")
+st.write("In questa sezione è possibile visualizzare le info su uno dei progetto della microcategoria selezionata ")
+
+query = f"""MATCH (p:Project)-[]->(f:Field)
+            WHERE f.Field_Code = "{selected_micro_code}"
+            RETURN p.Title AS Titolo
+            """
+query_results = conn.query(query)
+project_micro_fields_results = [record['Titolo'] for record in query_results]
+selected_project_micro_name = st.selectbox('Seleziona un progetto della microcategoria selezionata:', project_micro_fields_results)
+
+query = f"""MATCH (p:Project)-[]->(f:Field)
+            WHERE p.Title = "{selected_project_micro_name}"
+            RETURN DISTINCT p.Title AS Titolo, p.Abstract AS Abstract, p.Funding as Fondi, p.Start_Date AS DataInizio,
+                   p.End_Date as DataFine, p.Funder as Finanziatore, p.Funder_Group as Gruppo, 
+                   p.Publications as Pubblicazioni, p.Program AS Programma, p.Dimensions_URL AS DimensionsURL, 
+                   p.Source_Linkout as Link
+            """
+query_results = conn.query(query)
+
+project_info = [(
+        'Non Definito' if record['Titolo'] == 'NaN' else record['Titolo'],
+        'Non Definito' if record['Abstract'] == 'NaN' else record['Abstract'],
+        'Non Definito' if record['Fondi'] == 'NaN' else record['Fondi'],
+        'Non Definito' if record['DataInizio'] == 'NaN' else record['DataInizio'],
+        'Non Definito' if record['DataFine'] == 'NaN' else record['DataFine'],
+        'Non Definito' if record['Finanziatore'] == 'NaN' else record['Finanziatore'],
+        'Non Definito' if record['Gruppo'] == 'NaN' else record['Gruppo'],
+        'Non Definito' if record['Pubblicazioni'] == 'NaN' else record['Pubblicazioni'],
+        'Non Definito' if record['Programma'] == 'NaN' else record['Programma'],
+        'Non Definito' if record['DimensionsURL'] == 'NaN' else record['DimensionsURL'],
+        'Non Definito' if record['Link'] == 'NaN' else record['Link'])
+    for record in query_results
+]
+
+with st.expander("Info Box del progetto", expanded=True):
+    st.write(
+        '''
+            {}
+            {}
+            {}
+            {}
+            {}
+            {}
+            {}
+            {}
+            {}
+            {}
+            {}
+        '''
+        .format(
+            f'<p style="color: white;"><b style="color: #3e8ad2;">Titolo: </b>{project_info[0][0]} </p>',
+            f'<p style="color: white;"><b style="color: #3e8ad2;">Abstract: </b>{project_info[0][1]} </p>',
+            f'<p style="color: white;"><b style="color: #3e8ad2;">Fondi: </b>{project_info[0][2]} </p>',
+            f'<p style="color: white;"><b style="color: #3e8ad2;">Data di Inizio: </b>{project_info[0][3]} </p>',
+            f'<p style="color: white;"><b style="color: #3e8ad2;">Data di Fine: </b>{project_info[0][4]} </p>',
+            f'<p style="color: white;"><b style="color: #3e8ad2;">Finanziatore: </b>{project_info[0][5]} </p>',
+            f'<p style="color: white;"><b style="color: #3e8ad2;">Gruppo di Finanziamento: </b>{project_info[0][6]} </p>',
+            f'<p style="color: white;"><b style="color: #3e8ad2;">Numero di pubblicazioni: </b>{project_info[0][7].count("pub.")} </p>',
+            f'<p style="color: white;"><b style="color: #3e8ad2;">Programma: </b>{project_info[0][8]} </p>',
+            f'<p style="color: white;"><b style="color: #3e8ad2;">Dimensions URL: </b><a href="{project_info[0][9]}">{project_info[0][9]}</a></p>' if
+            project_info[0][9] != "Non Definito"
+            else f'<p style="color: white;"><b style="color: #3e8ad2;">Dimensions URL: </b>{project_info[0][9]} </p>',
+            f'<p style="color: white;"><b style="color: #3e8ad2;">Link: </b><a href="{project_info[0][10]}">{project_info[0][10]}</a></p>' if
+            project_info[0][10] != "Non Definito"
+            else f'<p style="color: white;"><b style="color: #3e8ad2;">Link: </b>{project_info[0][10]} </p>'
         ),
-        layers=[layerIstogramma, layerArea],
-        tooltip={
-            "html": "<b>Nome Organizzazione: </b> {Nome_Organizzazione} <br />"
-                    "<b>Numero progetti: </b> {Conteggio_Progetti} <br />"
-        }
+        unsafe_allow_html=True
     )
-)
+
+nodes_project = []
+edges_project = []
+ids_project = []
+
+# Definizione dei colori e delle etichette della legenda
+colors_project = ['grey', 'yellow']
+labels_project = ['Ricercatore', 'Progetto']
+
+# Layout a due colonne
+col7, col8 = st.columns([1, 3])
+
+with col7:
+    # Definiamo i valori booleani per filtrare il grafo
+    st.subheader('Filtri')
+    add_organization = st.checkbox('Visualizza le organizzazioni', key='organization')
+
+    st.divider()
+
+    # Creazione della legenda
+    st.subheader('Legenda')
+    if add_organization:
+        colors_project.append('blue')
+        labels_project.append('Organizzazioni')
+
+    for color, label in zip(colors_project, labels_project):
+        st.markdown(f'<span style="color:{color}">●</span> {label}', unsafe_allow_html=True)
+
+with col8:
+    query = f"""MATCH (r:Researcher)-[]->(p:Project)<-[]-(o:Organization)
+                WHERE p.Title = "{selected_project_micro_name}"
+                RETURN r AS Ricercatore, p AS Progetto, o AS Organizzazione
+            """
+
+    query_results = conn.query(query)
+    results = [(record['Ricercatore'], record['Progetto'], record['Organizzazione']) for record in query_results]
+
+    for record in results:
+        researcher = record[0]
+        if researcher.element_id not in ids_project:
+            ids_project.append(researcher.element_id)
+            nodes_project.append(Node(id=researcher.element_id,
+                                      title=researcher["Name"],
+                                      size=10,
+                                      color='grey')
+                                 )
+        project = record[1]
+        if project.element_id not in ids_project:
+            ids_project.append(project.element_id)
+            nodes_project.append(Node(id=project.element_id,
+                                      title=project["Title"],
+                                      size=15,
+                                      color='yellow')
+                                 )
+
+        edges_project.append(Edge(source=researcher.element_id,
+                                  label="Ricerca",
+                                  target=project.element_id,
+                                  color='black',
+                                  font={'size': 10}
+                                  )
+                             )
+
+        organization = record[2]
+        if add_organization:
+            if organization.element_id not in ids_project:
+                ids_project.append(organization.element_id)
+                nodes_project.append(Node(id=organization.element_id,
+                                  title=organization["Name"],
+                                  size=8,
+                                  color='blue')
+                             )
+
+            edges_project.append(Edge(source=organization.element_id,
+                                      label="Finanzia",
+                                      target=project.element_id,
+                                      color='black',
+                                      font={'size': 10}
+                                      )
+                                 )
+
+    agraph(nodes=nodes_project, edges=edges_project, config=config)
 
 # Explicitly close the connection
 conn.close()

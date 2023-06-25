@@ -1,4 +1,5 @@
 stopwords = [
+            "project",
             "'ll",
             "'tis",
             "'twas",
