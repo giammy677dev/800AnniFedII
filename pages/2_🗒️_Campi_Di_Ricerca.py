@@ -87,7 +87,7 @@ with col3:
     # Creazione della legenda
     st.subheader('Legenda')
     if add_researchers:
-        colors.append('grey')
+        colors.append('#3e8ad2')
         labels.append('Ricercatore')
 
     for color, label in zip(colors, labels):
@@ -134,7 +134,7 @@ with col4:
         edges.append(Edge(source=project.element_id,
                           label="Riguarda",
                           target=field.element_id,
-                          color='black',
+                          color='grey',
                           font={'size': 10}
                           )
                      )
@@ -146,13 +146,13 @@ with col4:
                 nodes.append(Node(id=researcher.element_id,
                                   title=researcher["Name"],
                                   size=8,
-                                  color='grey')
+                                  color='#3e8ad2')
                              )
 
             edges.append(Edge(source=researcher.element_id,
                               label="Ricerca",
                               target=project.element_id,
-                              color='black',
+                              color='grey',
                               font={'size': 10}
                               )
                          )
@@ -441,24 +441,15 @@ edges_project = []
 ids_project = []
 
 # Definizione dei colori e delle etichette della legenda
-colors_project = ['grey', 'yellow']
-labels_project = ['Ricercatore', 'Progetto']
+colors_project = ['#3e8ad2', 'yellow', 'orange']
+labels_project = ['Ricercatore', 'Progetto', 'Organizzazioni']
 
 # Layout a due colonne
 col7, col8 = st.columns([1, 3])
 
 with col7:
-    # Definiamo i valori booleani per filtrare il grafo
-    st.subheader('Filtri')
-    add_organization = st.checkbox('Visualizza le organizzazioni', key='organization')
-
-    st.divider()
-
     # Creazione della legenda
     st.subheader('Legenda')
-    if add_organization:
-        colors_project.append('blue')
-        labels_project.append('Organizzazioni')
 
     for color, label in zip(colors_project, labels_project):
         st.markdown(f'<span style="color:{color}">●</span> {label}', unsafe_allow_html=True)
@@ -479,7 +470,7 @@ with col8:
             nodes_project.append(Node(id=researcher.element_id,
                                       title=researcher["Name"],
                                       size=10,
-                                      color='grey')
+                                      color='#3e8ad2')
                                  )
         project = record[1]
         if project.element_id not in ids_project:
@@ -493,28 +484,27 @@ with col8:
         edges_project.append(Edge(source=researcher.element_id,
                                   label="Ricerca",
                                   target=project.element_id,
-                                  color='black',
+                                  color='grey',
                                   font={'size': 10}
                                   )
                              )
 
         organization = record[2]
-        if add_organization:
-            if organization.element_id not in ids_project:
-                ids_project.append(organization.element_id)
-                nodes_project.append(Node(id=organization.element_id,
-                                  title=organization["Name"],
-                                  size=8,
-                                  color='blue')
-                             )
-
-            edges_project.append(Edge(source=organization.element_id,
-                                      label="Finanzia",
-                                      target=project.element_id,
-                                      color='black',
-                                      font={'size': 10}
-                                      )
+        if organization.element_id not in ids_project:
+            ids_project.append(organization.element_id)
+            nodes_project.append(Node(id=organization.element_id,
+                                      title=organization["Name"],
+                                      size=8,
+                                      color='orange')
                                  )
+
+        edges_project.append(Edge(source=organization.element_id,
+                                  label="Finanzia",
+                                  target=project.element_id,
+                                  color='grey',
+                                  font={'size': 10}
+                                  )
+                             )
 
     agraph(nodes=nodes_project, edges=edges_project, config=config)
 

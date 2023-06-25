@@ -67,7 +67,7 @@ edges = []
 ids = []
 
 # Definizione dei colori e delle etichette della legenda
-colors = ['grey', 'yellow']
+colors = ['#3e8ad2', 'yellow']
 labels = ['Ricercatore', 'Progetto']
 
 # Layout a due colonne
@@ -115,7 +115,7 @@ with col4:
             nodes.append(Node(id=researcher.element_id,
                               title=researcher["Name"],
                               size=15,
-                              color='grey')
+                              color='#3e8ad2')
                          )
 
         project = record[1]
@@ -130,8 +130,8 @@ with col4:
         edges.append(Edge(source=researcher.element_id,
                           label="Ricerca",
                           target=project.element_id,
-                          color='black',
-                          font={'size': 10}
+                          color='grey',
+                          font={'size': 10},
                           )
                      )
 
@@ -148,7 +148,7 @@ with col4:
             edges.append(Edge(source=project.element_id,
                               label="Riguarda",
                               target=field.element_id,
-                              color='black',
+                              color='grey',
                               font={'size': 10}
                               )
                          )
