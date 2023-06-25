@@ -112,20 +112,34 @@ with col4:
         researcher = record[0]
         if researcher.element_id not in ids:
             ids.append(researcher.element_id)
-            nodes.append(Node(id=researcher.element_id,
-                              title=researcher["Name"],
-                              size=15,
-                              color='#3e8ad2')
-                         )
+            if researcher["Name"] != 'NaN':
+                nodes.append(Node(id=researcher.element_id,
+                                  title=researcher["Name"],
+                                  size=15,
+                                  color='#3e8ad2')
+                             )
+            else:
+                nodes.append(Node(id=researcher.element_id,
+                                  title="Non Definito",
+                                  size=15,
+                                  color='#3e8ad2')
+                             )
 
         project = record[1]
         if project.element_id not in ids:
             ids.append(project.element_id)
-            nodes.append(Node(id=project.element_id,
-                              title=project["Title"],
-                              size=10,
-                              color='yellow')
-                         )
+            if project["Title"] != 'NaN':
+                nodes.append(Node(id=project.element_id,
+                                  title=project["Title"],
+                                  size=10,
+                                  color='yellow')
+                             )
+            else:
+                nodes.append(Node(id=project.element_id,
+                                  title="Non Definito",
+                                  size=10,
+                                  color='yellow')
+                             )
 
         edges.append(Edge(source=researcher.element_id,
                           label="Ricerca",
@@ -139,11 +153,18 @@ with col4:
             field = record[2]
             if field.element_id not in ids:
                 ids.append(field.element_id)
-                nodes.append(Node(id=field.element_id,
-                                  title=field["Name"],
-                                  size=8,
-                                  color='green')
-                             )
+                if field["Name"] != 'NaN':
+                    nodes.append(Node(id=field.element_id,
+                                      title=field["Name"],
+                                      size=8,
+                                      color='green')
+                                 )
+                else:
+                    nodes.append(Node(id=field.element_id,
+                                      title="Non Definito",
+                                      size=8,
+                                      color='green')
+                                 )
 
             edges.append(Edge(source=project.element_id,
                               label="Riguarda",
@@ -155,7 +176,7 @@ with col4:
 
     agraph(nodes=nodes, edges=edges, config=config)
 
-# TABELLA
+# Tabella
 query = f"""MATCH (r:Researcher)-[rs:Research]->(p:Project) WHERE r.Name = '{selected_researcher}'
             RETURN p.Title AS Titolo, p.Funding as Fondi, p.Start_Date AS DataInizio,
                     p.End_Date as DataFine, p.Funder as Finanziatore, p.Funder_Group as Gruppo,
@@ -229,5 +250,5 @@ if len(df) > 1:
         # Visualizzazione del grafico su Streamlit
         st.plotly_chart(fig, use_container_width=True)
 
-# Explicitly close the connection
+# Chiudiamo la connessione al DB
 conn.close()

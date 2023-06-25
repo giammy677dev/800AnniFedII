@@ -2,7 +2,6 @@ from utils import st, conn
 import plotly.express as px
 import pandas as pd
 import plotly.graph_objects as go
-import matplotlib.pyplot as plt
 
 st.set_page_config(
     page_title="Eccellenze",
@@ -22,11 +21,12 @@ max_year = year_range[1]
 
 # Query per conteggio macro-categorie
 query = f"""MATCH (p:Project)-[r]-(f:Field)
-where SIZE(TRIM(f.Field_Code)) = 2 AND toInteger(p.Start_Year) >= {min_year} AND toInteger(p.Start_Year) <= {max_year}
-RETURN f.Name, COUNT(p) AS Conteggio
-ORDER BY Conteggio DESC
+            WHERE SIZE(TRIM(f.Field_Code)) = 2
+            AND toInteger(p.Start_Year) >= {min_year}
+            AND toInteger(p.Start_Year) <= {max_year}
+            RETURN f.Name, COUNT(p) AS Conteggio
+            ORDER BY Conteggio DESC
         """
-# Esecuzione della query
 query_results = conn.query(query)
 
 # Creare un dataframe dai risultati della query
@@ -39,12 +39,13 @@ st.plotly_chart(count_anno_chart, use_container_width=True)
 
 
 # Query per conteggio micro-categorie
-query = """MATCH (p:Project)-[r]-(f:Field)
-where SIZE(TRIM(f.Field_Code)) > 2
-RETURN f.Name, COUNT(p) AS Conteggio
-ORDER BY Conteggio DESC
+query = f"""MATCH (p:Project)-[r]-(f:Field)
+            WHERE SIZE(TRIM(f.Field_Code)) > 2
+            AND toInteger(p.Start_Year) >= {min_year}
+            AND toInteger(p.Start_Year) <= {max_year}
+            RETURN f.Name, COUNT(p) AS Conteggio
+            ORDER BY Conteggio DESC
         """
-# Esecuzione della query
 query_results = conn.query(query)
 
 # Creare un dataframe dai risultati della query
@@ -62,9 +63,10 @@ st.write("Piccola presentazione")
 
 # Query per conteggio macro-categorie nel tempo
 query = """MATCH (p:Project)-[r]-(f:Field)
-where SIZE(TRIM(f.Field_Code)) = 2
-RETURN f.Name, COUNT(p) AS projectCount, toInteger(p.Start_Year) AS Anno
-ORDER BY Anno DESC"""
+            WHERE SIZE(TRIM(f.Field_Code)) = 2
+            RETURN f.Name, COUNT(p) AS projectCount, toInteger(p.Start_Year) AS Anno
+            ORDER BY Anno DESC
+        """
 
 # Esecuzione della query
 query_results = conn.query(query)
@@ -101,8 +103,12 @@ numeroTotProgetti = numeroTotProgetti[0][0]
 
 # Esecuzione della query per numero totale progetti in campo medico
 query = """MATCH (p:Project)
-WHERE p.HRCS_HC_Categories <> 'NaN' OR  p.HRCS_RAC_Categories <> 'NaN' OR  p.CSO_Categories <> 'NaN' OR  p.Cancer_Types <> 'NaN'
-RETURN count(*)"""
+            WHERE p.HRCS_HC_Categories <> 'NaN'
+            OR  p.HRCS_RAC_Categories <> 'NaN'
+            OR  p.CSO_Categories <> 'NaN'
+            OR  p.Cancer_Types <> 'NaN'
+            RETURN count(*)
+        """
 numeroTotProgettiCampoMedico = conn.query(query)
 numeroTotProgettiCampoMedico = numeroTotProgettiCampoMedico[0][0]
 
@@ -135,11 +141,12 @@ with col2:
 
 
 query = """MATCH (p:Project)
-WHERE p.Cancer_Types <> 'NaN' AND p.Cancer_Types <> 'Not Site-Specific Cancer'
-WITH split(p.Cancer_Types, ';') AS cancerTypes
-UNWIND cancerTypes AS cancerType
-RETURN cancerType, COUNT(*) AS Conteggio
-ORDER BY Conteggio DESC"""
+            WHERE p.Cancer_Types <> 'NaN' AND p.Cancer_Types <> 'Not Site-Specific Cancer'
+            WITH split(p.Cancer_Types, ';') AS cancerTypes
+            UNWIND cancerTypes AS cancerType
+            RETURN cancerType, COUNT(*) AS Conteggio
+            ORDER BY Conteggio DESC
+        """
 
 # Esecuzione della query
 query_results = conn.query(query)
@@ -153,11 +160,12 @@ count_anno_chart = px.bar(df, x='cancerType', y='Conteggio', color='Conteggio', 
 st.plotly_chart(count_anno_chart, use_container_width=True)
 
 query = """MATCH (p:Project)
-WHERE p.Cancer_Types <> 'NaN' AND p.Cancer_Types <> 'Not Site-Specific Cancer'
-WITH split(p.Cancer_Types, ';') AS cancerTypes, p
-UNWIND cancerTypes AS cancerType
-RETURN cancerType, sum(toInteger(p.Funding)) AS TotalFunding
-ORDER BY TotalFunding DESC"""
+            WHERE p.Cancer_Types <> 'NaN' AND p.Cancer_Types <> 'Not Site-Specific Cancer'
+            WITH split(p.Cancer_Types, ';') AS cancerTypes, p
+            UNWIND cancerTypes AS cancerType
+            RETURN cancerType, sum(toInteger(p.Funding)) AS TotalFunding
+            ORDER BY TotalFunding DESC
+        """
 
 # Esecuzione della query
 query_results = conn.query(query)
@@ -170,20 +178,19 @@ count_anno_chart = px.bar(df, x='cancerType', y='TotalFunding', color='TotalFund
 
 st.plotly_chart(count_anno_chart, use_container_width=True)
 
-
-
 st.write("-------------------------------------------------------")
 st.header("Progetti sulla sostenibilità ambientale")
 st.write("Intro")
 
 query = """MATCH (p:Project)
-WHERE p.Sustainable_Goals <> 'NaN'
-WITH split(p.Sustainable_Goals, '; ') AS goals
-UNWIND goals AS goal
-WITH split(goal, ' ') AS goalParts, goal
-WITH substring(goal, size(goalParts[0]) + 1) AS Etichetta
-RETURN Etichetta, COUNT(*) AS Conteggio
-ORDER BY Conteggio DESC"""
+            WHERE p.Sustainable_Goals <> 'NaN'
+            WITH split(p.Sustainable_Goals, '; ') AS goals
+            UNWIND goals AS goal
+            WITH split(goal, ' ') AS goalParts, goal
+            WITH substring(goal, size(goalParts[0]) + 1) AS Etichetta
+            RETURN Etichetta, COUNT(*) AS Conteggio
+            ORDER BY Conteggio DESC
+        """
 
 # Esecuzione della query
 query_results = conn.query(query)
@@ -197,13 +204,14 @@ count_anno_chart = px.bar(df, x='Etichetta', y='Conteggio', color='Conteggio', c
 st.plotly_chart(count_anno_chart, use_container_width=True)
 
 query = """MATCH (p:Project)
-WHERE p.Sustainable_Goals <> 'NaN'
-WITH split(p.Sustainable_Goals, '; ') AS goals, p
-UNWIND goals AS goal
-WITH split(goal, ' ') AS goalParts, goal, p
-WITH substring(goal, size(goalParts[0]) + 1) AS Etichetta, p
-RETURN Etichetta, SUM(toInteger(p.Funding)) AS Totale_Fondi
-ORDER BY Totale_Fondi DESC"""
+            WHERE p.Sustainable_Goals <> 'NaN'
+            WITH split(p.Sustainable_Goals, '; ') AS goals, p
+            UNWIND goals AS goal
+            WITH split(goal, ' ') AS goalParts, goal, p
+            WITH substring(goal, size(goalParts[0]) + 1) AS Etichetta, p
+            RETURN Etichetta, SUM(toInteger(p.Funding)) AS Totale_Fondi
+            ORDER BY Totale_Fondi DESC
+        """
 
 # Esecuzione della query
 query_results = conn.query(query)
@@ -215,3 +223,6 @@ df = pd.DataFrame(query_results, columns=['Etichetta', 'Totale_Fondi'])
 count_anno_chart = px.bar(df, x='Etichetta', y='Totale_Fondi', color='Totale_Fondi', color_continuous_scale='Turbo')
 
 st.plotly_chart(count_anno_chart, use_container_width=True)
+
+# Chiudiamo la connessione al DB
+conn.close()

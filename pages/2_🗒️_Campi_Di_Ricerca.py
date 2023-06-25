@@ -116,20 +116,34 @@ with col4:
         field = record[0]
         if field.element_id not in ids:
             ids.append(field.element_id)
-            nodes.append(Node(id=field.element_id,
-                              title=field["Name"],
-                              size=15,
-                              color='green')
-                         )
+            if field["Name"] != 'NaN':
+                nodes.append(Node(id=field.element_id,
+                                  title=field["Name"],
+                                  size=15,
+                                  color='green')
+                             )
+            else:
+                nodes.append(Node(id=field.element_id,
+                                  title="Non Definito",
+                                  size=15,
+                                  color='green')
+                             )
 
         project = record[1]
         if project.element_id not in ids:
             ids.append(project.element_id)
-            nodes.append(Node(id=project.element_id,
-                              title=project["Title"],
-                              size=10,
-                              color='yellow')
-                         )
+            if project["Title"] != 'NaN':
+                nodes.append(Node(id=project.element_id,
+                                  title=project["Title"],
+                                  size=10,
+                                  color='yellow')
+                             )
+            else:
+                nodes.append(Node(id=project.element_id,
+                                  title="Non Definito",
+                                  size=10,
+                                  color='yellow')
+                             )
 
         edges.append(Edge(source=project.element_id,
                           label="Riguarda",
@@ -143,11 +157,18 @@ with col4:
             researcher = record[2]
             if researcher.element_id not in ids:
                 ids.append(researcher.element_id)
-                nodes.append(Node(id=researcher.element_id,
-                                  title=researcher["Name"],
-                                  size=8,
-                                  color='#3e8ad2')
-                             )
+                if researcher["Name"] != 'NaN':
+                    nodes.append(Node(id=researcher.element_id,
+                                      title=researcher["Name"],
+                                      size=8,
+                                      color='#3e8ad2')
+                                 )
+                else:
+                    nodes.append(Node(id=researcher.element_id,
+                                      title="Non Definito",
+                                      size=8,
+                                      color='#3e8ad2')
+                                 )
 
             edges.append(Edge(source=researcher.element_id,
                               label="Ricerca",
@@ -272,11 +293,17 @@ for tupla in frequency_results:
 
 wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(frequency_dictionary)
 
-# Visualizza il tag cloud in Streamlit
-fig, ax = plt.subplots()
-ax.imshow(wordcloud, interpolation='bilinear')
-ax.axis('off')
-st.pyplot(fig)
+# Layout a due colonne
+col7, col8 = st.columns([1, 3])
+
+with col7:
+    st.write("Spiegazione WordCloud")
+with col8:
+    # Visualizza il tag cloud in Streamlit
+    fig, ax = plt.subplots()
+    ax.imshow(wordcloud, interpolation='bilinear')
+    ax.axis('off')
+    st.pyplot(fig)
 
 st.write("-------------------------------------------------------------")
 st.header("Mappa geografica")
@@ -401,7 +428,7 @@ project_info = [(
     for record in query_results
 ]
 
-with st.expander("Info Box del progetto", expanded=True):
+with st.expander("Info Box del progetto"):
     st.write(
         '''
             {}
@@ -445,16 +472,16 @@ colors_project = ['#3e8ad2', 'yellow', 'orange']
 labels_project = ['Ricercatore', 'Progetto', 'Organizzazioni']
 
 # Layout a due colonne
-col7, col8 = st.columns([1, 3])
+col9, col10 = st.columns([1, 3])
 
-with col7:
+with col9:
     # Creazione della legenda
     st.subheader('Legenda')
 
     for color, label in zip(colors_project, labels_project):
         st.markdown(f'<span style="color:{color}">●</span> {label}', unsafe_allow_html=True)
 
-with col8:
+with col10:
     query = f"""MATCH (r:Researcher)-[]->(p:Project)<-[]-(o:Organization)
                 WHERE p.Title = "{selected_project_micro_name}"
                 RETURN r AS Ricercatore, p AS Progetto, o AS Organizzazione
@@ -467,19 +494,34 @@ with col8:
         researcher = record[0]
         if researcher.element_id not in ids_project:
             ids_project.append(researcher.element_id)
-            nodes_project.append(Node(id=researcher.element_id,
-                                      title=researcher["Name"],
-                                      size=10,
-                                      color='#3e8ad2')
-                                 )
+            if researcher["Name"] != 'NaN':
+                nodes_project.append(Node(id=researcher.element_id,
+                                          title=researcher["Name"],
+                                          size=10,
+                                          color='#3e8ad2')
+                                     )
+            else:
+                nodes_project.append(Node(id=researcher.element_id,
+                                          title="Non Definito",
+                                          size=10,
+                                          color='#3e8ad2')
+                                     )
+
         project = record[1]
         if project.element_id not in ids_project:
             ids_project.append(project.element_id)
-            nodes_project.append(Node(id=project.element_id,
-                                      title=project["Title"],
-                                      size=15,
-                                      color='yellow')
-                                 )
+            if project["Title"] != 'NaN':
+                nodes_project.append(Node(id=project.element_id,
+                                          title=project["Title"],
+                                          size=15,
+                                          color='yellow')
+                                     )
+            else:
+                nodes_project.append(Node(id=project.element_id,
+                                          title="Non Definito",
+                                          size=15,
+                                          color='yellow')
+                                     )
 
         edges_project.append(Edge(source=researcher.element_id,
                                   label="Ricerca",
@@ -492,11 +534,18 @@ with col8:
         organization = record[2]
         if organization.element_id not in ids_project:
             ids_project.append(organization.element_id)
-            nodes_project.append(Node(id=organization.element_id,
-                                      title=organization["Name"],
-                                      size=8,
-                                      color='orange')
-                                 )
+            if organization["Name"] != 'NaN':
+                nodes_project.append(Node(id=organization.element_id,
+                                          title=organization["Name"],
+                                          size=8,
+                                          color='orange')
+                                     )
+            else:
+                nodes_project.append(Node(id=organization.element_id,
+                                          title="Non Definito",
+                                          size=8,
+                                          color='orange')
+                                     )
 
         edges_project.append(Edge(source=organization.element_id,
                                   label="Finanzia",
@@ -508,5 +557,5 @@ with col8:
 
     agraph(nodes=nodes_project, edges=edges_project, config=config)
 
-# Explicitly close the connection
+# Chiudiamo la connessione al DB
 conn.close()
