@@ -11,7 +11,7 @@ def elenco_bullet(testo_grassetto, testo_normale):
                 unsafe_allow_html=True)
 
 # Immagine di copertina
-st.image('LogoUniRemakeWhite.png', use_column_width=True)
+st.image('FrontoneUniBordo.jpg', use_column_width=True)
 
 st.title("HomePage - 800 anni Federico II")
 st.header("Dashboard di analitiche sui progetti ️")
