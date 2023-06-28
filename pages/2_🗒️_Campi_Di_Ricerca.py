@@ -28,10 +28,11 @@ with col1:
     # Aggiungiamo il filtro per selezionare la macro-categoria
     query = """MATCH (f:Field) WHERE toInteger(f.Field_Code) < 99 AND f.Name <> 'NaN'
             RETURN toInteger(f.Field_Code) AS Field_Code, f.Name AS Name
+            ORDER BY Name
             """
     query_results = conn.query(query)
     macro_fields_results = [(record['Field_Code'], record['Name']) for record in query_results]
-    selected_macro_name = st.selectbox('Seleziona la macro-categoria:', [name[1] for name in macro_fields_results])
+    selected_macro_name = st.selectbox('Seleziona la macro-categoria:', [name[1] for name in macro_fields_results], index=10)
     # Trova il Field_Code corrispondente al campo selezionato
     selected_macro_code = None
     for record in macro_fields_results:
@@ -43,6 +44,7 @@ with col2:
     query = f"""MATCH (f:Field)
                 WHERE f.Field_Code =~ '^{selected_macro_code}\\d{{2}}$'
                 RETURN toInteger(f.Field_Code) AS Field_Code, f.Name AS Name
+                ORDER BY Name
             """
     query_results = conn.query(query)
     micro_fields_results = [(record['Field_Code'], record['Name']) for record in query_results]
@@ -55,7 +57,7 @@ with col2:
 
 # Configurazione per Agraph
 config = Config(width=1000,
-                height=450,
+                height=650,
                 directed=True,
                 physics={"barnesHut": {"gravitationalConstant": -10000,
                                        "centralGravity": 0.5,
@@ -188,6 +190,7 @@ if not add_ongoing_projects:
                 RETURN p.Title AS Titolo, p.Funding as Fondi, p.Start_Date AS DataInizio,
                         p.End_Date as DataFine, p.Funder as Finanziatore, p.Funder_Group as Gruppo,
                         p.Program AS Programma
+                ORDER BY Titolo
             """
 else:
     query = f"""MATCH (p:Project)-[]->(f:Field)
@@ -199,6 +202,7 @@ else:
                 RETURN p.Title AS Titolo, p.Funding as Fondi, p.Start_Date AS DataInizio,
                         p.End_Date as DataFine, p.Funder as Finanziatore, p.Funder_Group as Gruppo,
                         p.Program AS Programma
+                ORDER BY Titolo
             """
 
 query_results = conn.query(query)
@@ -398,11 +402,29 @@ st.write("In questa sezione è possibile visualizzare le info su uno dei progett
 
 query = f"""MATCH (p:Project)-[]->(f:Field)
             WHERE f.Field_Code = "{selected_micro_code}"
-            RETURN p.Title AS Titolo
+            RETURN p.ID as ID, p.Title AS Titolo, p.Funding as Fondi
+            ORDER BY Titolo
             """
 query_results = conn.query(query)
-project_micro_fields_results = [record['Titolo'] for record in query_results]
-selected_project_micro_name = st.selectbox('Seleziona un progetto della microcategoria selezionata:', project_micro_fields_results)
+project_micro_field_results = [(record['ID'], record['Titolo']) for record in query_results]
+funding_micro_field = [record['Fondi'] for record in query_results]
+
+funding_sum = 0
+funding_mean = 0
+for funds in funding_micro_field:
+    funding_sum += float(funds)
+funding_mean = funding_sum / len(funding_micro_field)
+
+selected_project_micro_name = st.selectbox('Seleziona un progetto della microcategoria selezionata:',
+                                           [name[1] for name in project_micro_field_results])
+selected_index = selected_project_micro_name.index(selected_project_micro_name)
+st.write(selected_index)
+
+# Trova il Field_Code corrispondente al campo selezionato
+selected_project_ID = None
+for record in project_micro_field_results:
+    if record[1] == project_micro_field_results:
+        selected_micro_code = record[0]
 
 query = f"""MATCH (p:Project)-[]->(f:Field)
             WHERE p.Title = "{selected_project_micro_name}"
@@ -428,40 +450,17 @@ project_info = [(
     for record in query_results
 ]
 
-with st.expander("Info Box del progetto"):
-    st.write(
-        '''
-            {}
-            {}
-            {}
-            {}
-            {}
-            {}
-            {}
-            {}
-            {}
-            {}
-            {}
-        '''
-        .format(
-            f'<p style="color: white;"><b style="color: #3e8ad2;">Titolo: </b>{project_info[0][0]} </p>',
-            f'<p style="color: white;"><b style="color: #3e8ad2;">Abstract: </b>{project_info[0][1]} </p>',
-            f'<p style="color: white;"><b style="color: #3e8ad2;">Fondi: </b>{project_info[0][2]} </p>',
-            f'<p style="color: white;"><b style="color: #3e8ad2;">Data di Inizio: </b>{project_info[0][3]} </p>',
-            f'<p style="color: white;"><b style="color: #3e8ad2;">Data di Fine: </b>{project_info[0][4]} </p>',
-            f'<p style="color: white;"><b style="color: #3e8ad2;">Finanziatore: </b>{project_info[0][5]} </p>',
-            f'<p style="color: white;"><b style="color: #3e8ad2;">Gruppo di Finanziamento: </b>{project_info[0][6]} </p>',
-            f'<p style="color: white;"><b style="color: #3e8ad2;">Numero di pubblicazioni: </b>{project_info[0][7].count("pub.")} </p>',
-            f'<p style="color: white;"><b style="color: #3e8ad2;">Programma: </b>{project_info[0][8]} </p>',
-            f'<p style="color: white;"><b style="color: #3e8ad2;">Dimensions URL: </b><a href="{project_info[0][9]}">{project_info[0][9]}</a></p>' if
-            project_info[0][9] != "Non Definito"
-            else f'<p style="color: white;"><b style="color: #3e8ad2;">Dimensions URL: </b>{project_info[0][9]} </p>',
-            f'<p style="color: white;"><b style="color: #3e8ad2;">Link: </b><a href="{project_info[0][10]}">{project_info[0][10]}</a></p>' if
-            project_info[0][10] != "Non Definito"
-            else f'<p style="color: white;"><b style="color: #3e8ad2;">Link: </b>{project_info[0][10]} </p>'
-        ),
-        unsafe_allow_html=True
-    )
+if project_info[0][0] != project_info[0][1] and project_info[0][1] != "Non Definito":
+    with st.expander("Abstract"):
+        st.write(
+            '''
+                {}
+            '''
+            .format(
+                f'<p style="color: white;"><b style="color: #3e8ad2;"></b>{project_info[0][1]}</p>'
+            ),
+            unsafe_allow_html=True
+        )
 
 nodes_project = []
 edges_project = []
@@ -471,8 +470,26 @@ ids_project = []
 colors_project = ['#3e8ad2', 'yellow', 'orange']
 labels_project = ['Ricercatore', 'Progetto', 'Organizzazioni']
 
+
+def format_compact_currency(amount, currency_code, fraction_digits):
+    suffixes = {
+        0: '',
+        3: 'K',
+        6: 'M',
+        9: 'Mld'
+    }
+
+    magnitude = 0
+    while abs(amount) >= 1000:
+        amount /= 1000.0
+        magnitude += 3
+
+    formatted_amount = f'{amount:.{fraction_digits}f}{suffixes[magnitude]} {currency_code}'
+    return formatted_amount
+
+
 # Layout a due colonne
-col9, col10 = st.columns([1, 3])
+col9, col10 = st.columns([40, 60])
 
 with col9:
     # Creazione della legenda
@@ -480,6 +497,32 @@ with col9:
 
     for color, label in zip(colors_project, labels_project):
         st.markdown(f'<span style="color:{color}">●</span> {label}', unsafe_allow_html=True)
+
+    st.divider()
+
+    col91, col92 = st.columns([1, 1])
+    col91.metric("Data di Inizio", project_info[0][3])
+    col92.metric("Data di Fine", project_info[0][4])
+
+    funding_delta = float(project_info[0][2]) - funding_mean
+    col91.metric("Fondi investiti", format_compact_currency(float(project_info[0][2]), '€', 1),
+                 delta=format_compact_currency(funding_delta, '€', 1), delta_color="normal",
+                 help="Numero di fondi investiti e confronto con la media della micro"
+                 )
+    col92.metric("Numero di Pubblicazioni", project_info[0][7].count("pub."))
+
+    st.write(
+        '''
+        {}
+        {}
+        '''
+        .format(
+            f'<p style="font-size: 1rem; font-family: Source Serif Pro; margin-top: 0px; margin-bottom: 0px;">Finanziatore</p>',
+            f'<p style="font-size: 2.25rem; font-family: Source Serif Pro; margin-top: 0px; margin-bottom: 0px;">{project_info[0][5]}</p>'
+        ),
+        unsafe_allow_html=True
+    )
+
 
 with col10:
     query = f"""MATCH (r:Researcher)-[]->(p:Project)<-[]-(o:Organization)
