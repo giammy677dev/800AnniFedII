@@ -13,7 +13,7 @@ st.title("🎖️Eccellenze")
 st.write("Piccola introduzione")
 
 # Definisci il valore minimo e massimo dell'intervallo per lo slider
-year_range = st.slider("Seleziona l'intervallo di anni", min_value=1970, max_value=2023, value=(2010, 2023))
+year_range = st.slider("Seleziona il periodo temporale da analizzare", min_value=1970, max_value=2023, value=(2010, 2023))
 
 # Estrai i valori minimo e massimo selezionati dallo slider
 min_year = year_range[0]
@@ -32,15 +32,34 @@ query_results = conn.query(query)
 # Creare un dataframe dai risultati della query
 df = pd.DataFrame(query_results, columns=['Field_Name', 'Conteggio'])
 
-# Creare il grafico a barre
-count_anno_chart = px.bar(df, x='Field_Name', y='Conteggio', color='Conteggio', color_continuous_scale='Turbo')
+# Creare il grafico a barre orizzontale
+count_anno_chart = px.bar(df, y='Field_Name', x='Conteggio', color='Conteggio', color_continuous_scale='Turbo', orientation='h', labels={'Conteggio': 'Numero Progetti', 'Field_Name' : 'Settore Disciplinare'})
+
+# etichette del grafico
+count_anno_chart.update_layout(
+    xaxis_title='Numero Progetti',
+    yaxis_title='Settore Disciplinare',
+    yaxis={'categoryorder': 'total ascending'}
+)
 
 st.plotly_chart(count_anno_chart, use_container_width=True)
 
+#Select box per filtrare per macrocategoria
+query = """MATCH (f:Field) WHERE SIZE(TRIM(f.Field_Code)) = 2 AND f.Name <> 'NaN'
+            RETURN toInteger(f.Field_Code) AS Field_Code, f.Name AS Name
+            """
+query_results = conn.query(query)
+macro_fields_results = [(record['Field_Code'], record['Name']) for record in query_results]
+selected_macro_name = st.selectbox('Seleziona il settore disciplinare:', [name[1] for name in macro_fields_results])
+# Trova il Field_Code corrispondente al campo selezionato
+selected_macro_code = None
+for record in macro_fields_results:
+    if record[1] == selected_macro_name:
+        selected_macro_code = record[0]
 
 # Query per conteggio micro-categorie
 query = f"""MATCH (p:Project)-[r]-(f:Field)
-            WHERE SIZE(TRIM(f.Field_Code)) > 2
+            WHERE f.Field_Code =~ '^{selected_macro_code}\\d{{2}}$'
             AND toInteger(p.Start_Year) >= {min_year}
             AND toInteger(p.Start_Year) <= {max_year}
             RETURN f.Name, COUNT(p) AS Conteggio
@@ -52,7 +71,12 @@ query_results = conn.query(query)
 df = pd.DataFrame(query_results, columns=['Field_Name', 'Conteggio'])
 
 # Creare il grafico a barre
-count_anno_chart = px.bar(df, x='Field_Name', y='Conteggio', color='Conteggio', color_continuous_scale='Turbo')
+count_anno_chart = px.bar(df, y='Field_Name', x='Conteggio', color='Conteggio', color_continuous_scale='Turbo', orientation='h', labels={'Conteggio': 'Numero Progetti', 'Field_Name' : 'Dipartimento'})
+
+# ordine del grafico
+count_anno_chart.update_layout(
+    yaxis={'categoryorder': 'total ascending'}
+)
 
 st.plotly_chart(count_anno_chart, use_container_width=True)
 
@@ -94,8 +118,8 @@ for field in field_names:
 st.plotly_chart(fig, use_container_width=True)
 
 st.write("-------------------------------------------------------")
-st.header("Progetti sul cancro")
-st.write("Intro")
+st.header("Healthcare")
+st.write("Introduzione ai progetti Healthcare")
 
 # Esecuzione della query per numero totale progetti
 numeroTotProgetti = conn.query("""MATCH (p:Project) RETURN count(*)""")
@@ -120,19 +144,19 @@ numeroProgettiSulCancro = numeroProgettiSulCancro[0][0]
 col1, col2 = st.columns([1, 1])
 
 with col1:
-    labels = ['Altro', 'Campo Medico']
+    labels = ['Altri Progetti', 'Progetti Healthcare']
     values = [numeroTotProgetti-numeroTotProgettiCampoMedico, numeroTotProgettiCampoMedico]
-    explode = (0, 0.1)  # Esplosione della seconda fetta (Campo Medico)
+    explode1 = (0, 0.1)  # Esplosione della seconda fetta (Campo Medico)
 
     fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=0.5)])
-    fig.update_layout(title="Percentuale Progetti Medici")
+    fig.update_layout(title="Percentuale Progetti Healthcare")
 
     st.plotly_chart(fig, use_container_width=True)
 
 with col2:
-    labels = ['Campo Medico', 'Specifici sul Cancro']
+    labels = ['Progetti Healthcare', 'Progetti specifici sul Cancro']
     values = [numeroTotProgettiCampoMedico-numeroProgettiSulCancro, numeroProgettiSulCancro]
-    explode = (0, 0.1)  # Esplosione della seconda fetta (Progetti sul Cancro)
+    explode2 = (0, 0.1)  # Esplosione della seconda fetta (Progetti sul Cancro)
 
     fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=0.5)])
     fig.update_layout(title="Percentuale Progetti sul Cancro")
@@ -155,7 +179,13 @@ query_results = conn.query(query)
 df = pd.DataFrame(query_results, columns=['cancerType', 'Conteggio'])
 
 # Creare il grafico a barre
-count_anno_chart = px.bar(df, x='cancerType', y='Conteggio', color='Conteggio', color_continuous_scale='Turbo')
+count_anno_chart = px.bar(df, y='cancerType', x='Conteggio', color='Conteggio', color_continuous_scale='Turbo', orientation='h', labels={'Conteggio': 'Numero Progetti', 'cancerType' : 'Tipologia Cancro'})
+
+# ordine del grafico
+count_anno_chart.update_layout(
+    yaxis={'categoryorder': 'total ascending'}
+)
+
 
 st.plotly_chart(count_anno_chart, use_container_width=True)
 
@@ -174,7 +204,24 @@ query_results = conn.query(query)
 df = pd.DataFrame(query_results, columns=['cancerType', 'TotalFunding'])
 
 # Creare il grafico a barre
-count_anno_chart = px.bar(df, x='cancerType', y='TotalFunding', color='TotalFunding', color_continuous_scale='Turbo')
+count_anno_chart = px.bar(df, y='cancerType', x='TotalFunding', color='TotalFunding', color_continuous_scale='Turbo', orientation='h', labels={'TotalFunding': 'Fondi Investiti', 'cancerType' : 'Tipologia Cancro'})
+
+# ordine del grafico
+count_anno_chart.update_layout(
+    yaxis={'categoryorder': 'total ascending'}
+)
+
+# Aggiunta del simbolo dell'euro alle etichette sui fondi
+count_anno_chart.update_xaxes(ticksuffix='€')
+
+# Modifiche etichette visualizzabili passando col mouse sulla barra
+count_anno_chart.update_traces(
+    customdata=df['TotalFunding'],
+    hovertemplate=' %{customdata} €',
+)
+
+# Aggiunta del simbolo dell'euro alle etichette del riferimento dei colori
+count_anno_chart.update_coloraxes(colorbar=dict(ticksuffix='€'))
 
 st.plotly_chart(count_anno_chart, use_container_width=True)
 
@@ -199,7 +246,12 @@ query_results = conn.query(query)
 df = pd.DataFrame(query_results, columns=['Etichetta', 'Conteggio'])
 
 # Creare il grafico a barre
-count_anno_chart = px.bar(df, x='Etichetta', y='Conteggio', color='Conteggio', color_continuous_scale='Turbo')
+count_anno_chart = px.bar(df, y='Etichetta', x='Conteggio', color='Conteggio', color_continuous_scale='Turbo', orientation='h',labels={'Conteggio': 'Numero Progetti', 'Etichetta' : 'Campo di Interesse'})
+
+# ordine del grafico
+count_anno_chart.update_layout(
+    yaxis={'categoryorder': 'total ascending'}
+)
 
 st.plotly_chart(count_anno_chart, use_container_width=True)
 
@@ -220,7 +272,24 @@ query_results = conn.query(query)
 df = pd.DataFrame(query_results, columns=['Etichetta', 'Totale_Fondi'])
 
 # Creare il grafico a barre
-count_anno_chart = px.bar(df, x='Etichetta', y='Totale_Fondi', color='Totale_Fondi', color_continuous_scale='Turbo')
+count_anno_chart = px.bar(df, y='Etichetta', x='Totale_Fondi', color='Totale_Fondi', color_continuous_scale='Turbo', orientation='h', labels={'Totale_Fondi': 'Fondi Investiti', 'Etichetta' : 'Campo di Interesse'})
+
+# Aggiunta del simbolo dell'euro alle etichette sui fondi
+count_anno_chart.update_xaxes(ticksuffix='€')
+
+# Modifiche etichette visualizzabili passando col mouse sulla barra
+count_anno_chart.update_traces(
+    customdata=df['Totale_Fondi'],
+    hovertemplate=' %{customdata} €',
+)
+
+# ordine del grafico
+count_anno_chart.update_layout(
+    yaxis={'categoryorder': 'total ascending'}
+)
+
+# Aggiunta del simbolo dell'euro alle etichette del riferimento dei colori
+count_anno_chart.update_coloraxes(colorbar=dict(ticksuffix='€'))
 
 st.plotly_chart(count_anno_chart, use_container_width=True)
 
