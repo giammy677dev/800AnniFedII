@@ -398,7 +398,7 @@ map_creation(selected_micro_code)
 # Selezioniamo il singolo progetto della micro-categoria selezionata
 st.write("-------------------------------------------------------------")
 st.header("Seleziona Progetto Microcategoria")
-st.write("In questa sezione è possibile visualizzare le info su uno dei progetto della microcategoria selezionata ")
+st.write("In questa sezione è possibile visualizzare le info su uno dei progetti della microcategoria selezionata ")
 
 query = f"""MATCH (p:Project)-[]->(f:Field)
             WHERE f.Field_Code = "{selected_micro_code}"
@@ -415,19 +415,15 @@ for funds in funding_micro_field:
     funding_sum += float(funds)
 funding_mean = funding_sum / len(funding_micro_field)
 
-selected_project_micro_name = st.selectbox('Seleziona un progetto della microcategoria selezionata:',
-                                           [name[1] for name in project_micro_field_results])
-selected_index = selected_project_micro_name.index(selected_project_micro_name)
-st.write(selected_index)
+# La successiva selectbox è diversa rispetto alle altre: restituisce l'indice dell'oggetto selezionato!!
+selected_project_micro_name = st.selectbox("Seleziona un progetto:",
+                                           range(len(project_micro_field_results)),
+                                           format_func=lambda x: project_micro_field_results[x][1])
 
-# Trova il Field_Code corrispondente al campo selezionato
-selected_project_ID = None
-for record in project_micro_field_results:
-    if record[1] == project_micro_field_results:
-        selected_micro_code = record[0]
+selected_ID = project_micro_field_results[selected_project_micro_name][0]
 
 query = f"""MATCH (p:Project)-[]->(f:Field)
-            WHERE p.Title = "{selected_project_micro_name}"
+            WHERE p.ID = "{selected_ID}"
             RETURN DISTINCT p.Title AS Titolo, p.Abstract AS Abstract, p.Funding as Fondi, p.Start_Date AS DataInizio,
                    p.End_Date as DataFine, p.Funder as Finanziatore, p.Funder_Group as Gruppo, 
                    p.Publications as Pubblicazioni, p.Program AS Programma, p.Dimensions_URL AS DimensionsURL, 
@@ -518,15 +514,42 @@ with col9:
         '''
         .format(
             f'<p style="font-size: 1rem; font-family: Source Serif Pro; margin-top: 0px; margin-bottom: 0px;">Finanziatore</p>',
-            f'<p style="font-size: 2.25rem; font-family: Source Serif Pro; margin-top: 0px; margin-bottom: 0px;">{project_info[0][5]}</p>'
+            f'<p style="font-size: 2rem; font-family: Source Serif Pro; margin-top: 0px; margin-bottom: 10px;">{project_info[0][5]}</p>'
         ),
         unsafe_allow_html=True
     )
 
+    col93, col94 = st.columns([1, 1])
+
+    if project_info[0][9] != "Non Definito":
+        button_text = "Dimensions URL"
+        button_markdown = f'<div style="display:flex;justify-content:center;">' \
+                          f'<a href="{project_info[0][9]}" target="_blank" style="text-decoration:none;">' \
+                          f'<button style="padding:8px 16px;border-radius:4px;background-color:#3e8ad2;color:#ffffff;font-weight:bold;border:none;margin:0 auto;">' \
+                          f'{button_text}</button></a>' \
+                          f'</div>'
+        col93.markdown(button_markdown, unsafe_allow_html=True)
+
+    if project_info[0][10] != "Non Definito" and project_info[0][9] != "Non Definito":
+        button_text = "Source Link"
+        button_markdown = f'<div style="display:flex;justify-content:center;">' \
+                          f'<a href="{project_info[0][10]}" target="_blank" style="text-decoration:none;">' \
+                          f'<button style="padding:8px 16px;border-radius:4px;background-color:#3e8ad2;color:#ffffff;font-weight:bold;border:none;margin:0 auto;">' \
+                          f'{button_text}</button></a>' \
+                          f'</div>'
+        col94.markdown(button_markdown, unsafe_allow_html=True)
+    elif project_info[0][10] != "Non Definito" and project_info[0][9] == "Non Definito":
+        button_text = "Source Link"
+        button_markdown = f'<div style="display:flex;justify-content:center;">' \
+                          f'<a href="{project_info[0][10]}" target="_blank" style="text-decoration:none;">' \
+                          f'<button style="padding:8px 16px;border-radius:4px;background-color:#3e8ad2;color:#ffffff;font-weight:bold;border:none;margin:0 auto;">' \
+                          f'{button_text}</button></a>' \
+                          f'</div>'
+        col93.markdown(button_markdown, unsafe_allow_html=True)
 
 with col10:
     query = f"""MATCH (r:Researcher)-[]->(p:Project)<-[]-(o:Organization)
-                WHERE p.Title = "{selected_project_micro_name}"
+                WHERE p.ID = "{selected_ID}"
                 RETURN r AS Ricercatore, p AS Progetto, o AS Organizzazione
             """
 
