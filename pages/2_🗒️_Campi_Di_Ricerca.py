@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import pydeck as pdk
 from geopy.geocoders import Nominatim
 import re
+import pycountry
+import base64
 
 st.set_page_config(
     page_title="Campi di Ricerca",
@@ -56,7 +58,7 @@ with col2:
             selected_micro_code = record[0]
 
 # Configurazione per Agraph
-config = Config(width=1000,
+config = Config(width=600,
                 height=650,
                 directed=True,
                 physics={"barnesHut": {"gravitationalConstant": -10000,
@@ -422,7 +424,7 @@ selected_project_micro_name = st.selectbox("Seleziona un progetto:",
 
 selected_ID = project_micro_field_results[selected_project_micro_name][0]
 
-query = f"""MATCH (p:Project)-[]->(f:Field)
+query = f"""MATCH (p:Project)
             WHERE p.ID = "{selected_ID}"
             RETURN DISTINCT p.Title AS Titolo, p.Abstract AS Abstract, p.Funding as Fondi, p.Start_Date AS DataInizio,
                    p.End_Date as DataFine, p.Funder as Finanziatore, p.Funder_Group as Gruppo, 
@@ -484,18 +486,20 @@ def format_compact_currency(amount, currency_code, fraction_digits):
     return formatted_amount
 
 
+def get_flag_name_alpha2(country_name):
+    try:
+        selected_country = pycountry.countries.get(name=country_name)
+        flag_name = pycountry.countries.get(alpha_2=selected_country.alpha_2).alpha_2.lower()
+        return flag_name
+    except (AttributeError, KeyError) as e:
+        print(f"Error: {e}")
+        return None
+
+
 # Layout a due colonne
 col9, col10 = st.columns([40, 60])
 
 with col9:
-    # Creazione della legenda
-    st.subheader('Legenda')
-
-    for color, label in zip(colors_project, labels_project):
-        st.markdown(f'<span style="color:{color}">●</span> {label}', unsafe_allow_html=True)
-
-    st.divider()
-
     col91, col92 = st.columns([1, 1])
     col91.metric("Data di Inizio", project_info[0][3])
     col92.metric("Data di Fine", project_info[0][4])
@@ -514,7 +518,95 @@ with col9:
         '''
         .format(
             f'<p style="font-size: 1rem; font-family: Source Serif Pro; margin-top: 0px; margin-bottom: 0px;">Finanziatore</p>',
-            f'<p style="font-size: 2rem; font-family: Source Serif Pro; margin-top: 0px; margin-bottom: 10px;">{project_info[0][5]}</p>'
+            f'<p style="font-size: 2rem; font-family: Source Serif Pro; margin-top: 0px; margin-bottom: 0px;">{project_info[0][5]}</p>'
+        ),
+        unsafe_allow_html=True
+    )
+
+    st.divider()
+    # Bandiere
+    query = f"""MATCH(p:Project)<-[fn:Finance]-(o:Organization)
+                WHERE p.ID = "{selected_ID}" AND o.Name <> "University of Naples Federico II"
+                RETURN DISTINCT o.Country AS Country
+                ORDER BY o.Country ASC
+                """
+    query_results = conn.query(query)
+    country_results = [record['Country'] for record in query_results]
+
+    st.write(
+        '''
+        {}
+        '''
+        .format(
+            f'<p style="font-size: 1rem; font-family: Source Serif Pro; margin-top: 0px; margin-bottom: 10px;">Internazionalità del progetto</p>'
+        ),
+        unsafe_allow_html=True
+    )
+
+    # Inizializza la stringa per il codice HTML delle immagini
+    full_images_encoded = ""
+    width = 40
+    height = 40
+
+    for country in country_results:
+        country_code = get_flag_name_alpha2(country)
+        if country_code:
+            # Leggi il contenuto dell'immagine SVG
+            with open(f"utility/flags/{country_code}.svg", "r") as f:
+                svg_content = f.read()
+
+            # Codifica il contenuto dell'immagine in base64
+            encoded_svg = base64.b64encode(svg_content.encode("utf-8")).decode("utf-8")
+
+            # Genera il codice HTML per visualizzare l'immagine SVG con dimensioni ridotte
+            image_encoded = f'''<img src="data:image/svg+xml;base64,{encoded_svg}" width="{width}" height="{height}"
+                                style="margin-right: 10px; margin-bottom: 10px;">
+                            '''
+            # Concatena il codice HTML all'interno della stringa per visualizzare le immagini una accanto all'altra
+            full_images_encoded += image_encoded
+
+    # Visualizza le immagini SVG
+    st.markdown(full_images_encoded, unsafe_allow_html=True)
+
+    st.divider()
+
+    # Visualizzazione interdisciplinarità
+    query = f"""MATCH (p:Project)-[]->(f:Field)
+                WHERE p.ID = "{selected_ID}" AND toInteger(f.Field_Code) < 99
+                RETURN f.Name AS CampoDiRicerca
+                """
+    query_results = conn.query(query)
+    project_macro_field = [record['CampoDiRicerca'] for record in query_results]
+
+    if len(project_macro_field) > 1:
+        st.write(
+            '''
+            {}
+            '''
+            .format(
+                f'<p style="font-size: 1rem; font-family: Source Serif Pro; margin-top: 0px; margin-bottom: 10px;">Interdisciplinarità del progetto</p>'
+            ),
+            unsafe_allow_html=True
+        )
+
+        for projects in project_macro_field:
+            st.write(
+                '''
+                {}
+                '''
+                .format(
+                    f'<p style="font-size: 2rem; font-family: Source Serif Pro; margin-top: 0px; margin-bottom: 0px;">{projects}</p>'
+                ),
+                unsafe_allow_html=True
+            )
+        st.divider()
+
+    st.write(
+        '''
+        {}
+        '''
+        .format(
+            f'<p style="font-size: 1rem; font-family: Source Serif Pro; margin-top: 0px; margin-bottom: 10px;">Link utili</p>'
         ),
         unsafe_allow_html=True
     )
@@ -548,6 +640,7 @@ with col9:
         col93.markdown(button_markdown, unsafe_allow_html=True)
 
 with col10:
+    col101, col102 = st.columns([80, 20])
     query = f"""MATCH (r:Researcher)-[]->(p:Project)<-[]-(o:Organization)
                 WHERE p.ID = "{selected_ID}"
                 RETURN r AS Ricercatore, p AS Progetto, o AS Organizzazione
@@ -621,7 +714,14 @@ with col10:
                                   )
                              )
 
-    agraph(nodes=nodes_project, edges=edges_project, config=config)
+    with col101:
+        agraph(nodes=nodes_project, edges=edges_project, config=config)
+
+    # Creazione della legenda
+    col102.subheader('Legenda')
+
+    for color, label in zip(colors_project, labels_project):
+        col102.markdown(f'<span style="color:{color}">●</span> {label}', unsafe_allow_html=True)
 
 # Chiudiamo la connessione al DB
 conn.close()
