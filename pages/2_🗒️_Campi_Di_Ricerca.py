@@ -316,86 +316,164 @@ st.header("Mappa geografica")
 st.write("Mappa geografica per visualizzare le città che hanno interagito maggiormente nel micro-campo precedentemente "
          "selezionato. ")
 
-# Query per conteggio macro-categorie
-query = f"""MATCH (f:Field)-[r1]-(p:Project)-[r2]-(o:Organization) 
-            WHERE f.Field_Code = '{selected_micro_code}' AND o.Name <> 'University of Naples Federico II'
-            RETURN o.City AS City, count(p) as Conteggio_Progetti, o.Name as Nome_Organizzazione
-            ORDER BY Conteggio_Progetti DESC
-        """
-query_results = conn.query(query)
+def get_flag_name_alpha2(country_name):
+    try:
+        selected_country = pycountry.countries.get(name=country_name)
+        flag_name = pycountry.countries.get(alpha_2=selected_country.alpha_2).alpha_2.lower()
+        return flag_name
+    except (AttributeError, KeyError) as e:
+        print(f"Error: {e}")
+        return None
 
-# Creazione di un DataFrame dai risultati della query
-city_data = pd.DataFrame(query_results, columns=['City', 'Conteggio_Progetti', 'Nome_Organizzazione'])
+# Specifica la larghezza percentuale per ciascuna colonna
+column_widths = [37, 63]
+
+col9, col10 = st.columns(column_widths)
+with col9:
 
 
-# Creazione della mappa interattiva
-@st.cache_data
-def map_creation(micro_code):
-    if micro_code is not None:
-        # Creazione di un'istanza del geocoder Nominatim
-        geolocator = Nominatim(user_agent="my_geocoder")
+    # Esegui la query per ottenere i dati dei paesi
+    query = f"""MATCH (f:Field)-[r1]-(p:Project)-[r2]-(o:Organization) 
+                    WHERE f.Field_Code = '{selected_micro_code}' AND o.Name <> 'University of Naples Federico II'
+                    WITH o.Country AS Country, o.Name AS Nome_Organizzazione, count(DISTINCT p) AS Conteggio_Progetti, count(DISTINCT o) AS Conteggio_Organizzazioni
+                    WITH Country, sum(Conteggio_Progetti) AS Totale_Progetti, count(Nome_Organizzazione) AS Totale_Organizzazioni
+                    RETURN Country, Totale_Organizzazioni, Totale_Progetti
+                    ORDER BY Totale_Progetti DESC
+                """
+    query_results = conn.query(query)
+    # Creazione del DataFrame country_data dai risultati della query
+    country_data = pd.DataFrame(query_results, columns=['Country', 'Totale_Organizzazioni', 'Totale_Progetti'])
 
-        # Ottenimento delle coordinate geografiche per ogni città
-        city_data['Latitude'] = np.nan
-        city_data['Longitude'] = np.nan
+    country_results = [record['Country'] for record in query_results]
 
-        for index, row in city_data.iterrows():
-            city_name = row['City']
-            location = geolocator.geocode(city_name)
-            if location:
-                latitude = location.latitude
-                longitude = location.longitude
-                city_data.at[index, 'Latitude'] = latitude
-                city_data.at[index, 'Longitude'] = longitude
+    # Inizializza la stringa per il codice HTML delle immagini
+    full_images_encoded = ""
+    width = 40
+    height = 40
 
-        # Creazione del DataFrame chart_data per la visualizzazione sulla mappa
-        chart_data = city_data[['Latitude', 'Longitude', 'Conteggio_Progetti', 'Nome_Organizzazione']].copy()
+    colonnaFlag = []
 
-        # Converti il DataFrame in un elenco di dizionari
-        chart_data_dict = chart_data.to_dict('records')
+    for country in country_data['Country']:
+        country_code = get_flag_name_alpha2(country)
+        if country_code:
+            # Leggi il contenuto dell'immagine SVG
+            with open(f"utility/flags/{country_code}.svg", "r") as f:
+                svg_content = f.read()
 
-        # Preparo il layer per l'istogramma che deve comparire nel grafico
-        layerIstogramma = pdk.Layer(
-            'ColumnLayer',
-            data=chart_data_dict,
-            get_position='[Longitude, Latitude]',
-            get_elevation='Conteggio_Progetti',
-            elevation_scale=10000,
-            get_color='[200, 30, 0, 100]',
-            radius=7000,
-            pickable=True,
-            auto_highlight=True,
-            extruded=True
-        )
+            # Codifica il contenuto dell'immagine in base64
+            encoded_svg = base64.b64encode(svg_content.encode("utf-8")).decode("utf-8")
 
-        # Preparo il layer per l'area col raggio specificato
-        layerArea = pdk.Layer(
-            'ScatterplotLayer',
-            data=chart_data_dict,
-            get_position='[Longitude, Latitude]',
-            get_color='[200, 200, 0, 25]',
-            get_radius=50000
-        )
+            # Genera il codice HTML per visualizzare l'immagine SVG con dimensioni ridotte
+            image_encoded = f'''<img src="data:image/svg+xml;base64,{encoded_svg}" width="{width}" height="{height}"
+                                    style="margin-right: 10px; margin-bottom: 10px;">
+                                '''
+            colonnaFlag.append(image_encoded)
 
-        st.pydeck_chart(
-            pdk.Deck(
-                map_style=None,
-                initial_view_state=pdk.ViewState(
-                    latitude=42.41183986816765,
-                    longitude=12.865247589554036,
-                    zoom=5,
-                    pitch=50,
-                ),
-                layers=[layerIstogramma, layerArea],
-                tooltip={
-                    "html": "<b>Nome Organizzazione: </b> {Nome_Organizzazione} <br />"
-                            "<b>Numero progetti: </b> {Conteggio_Progetti} <br />"
-                }
+    country_data.insert(loc=3, column='Flag', value=colonnaFlag)
+
+
+    # Aggiungi una stringa prefissa ai valori delle colonne
+    country_data['Totale_Organizzazioni'] = 'Organizzazioni ' + country_data['Totale_Organizzazioni'].astype(
+        str)
+    country_data['Totale_Progetti'] = 'Progetti ' + country_data['Totale_Progetti'].astype(str)
+
+    # Riordina le colonne del DataFrame
+    country_data = country_data[['Flag', 'Country', 'Totale_Organizzazioni', 'Totale_Progetti']]
+
+    # Converti il DataFrame in HTML e rimuovi l'indice e l'intestazione
+    table_html = country_data.to_html(escape=False, index=False, header=False)
+
+    # CSS personalizzato per creare una tabella con uno scroll e senza bordi
+    table_style = """
+    <style>
+    table {
+        width: 50% !important;
+        border: none !important;
+    }
+    table td, table th {
+        border: none !important;
+        text-align: center;
+    }
+    .scrollable {
+        height: 485px; 
+        overflow: auto;
+    }
+    </style>
+    """
+
+    # Visualizza il CSS personalizzato e il DataFrame come una tabella in Streamlit
+    st.markdown(table_style, unsafe_allow_html=True)
+    st.markdown(f'<div class="scrollable">{table_html}</div>', unsafe_allow_html=True)
+
+with col10:
+    query = f"""MATCH (f:Field)-[r1]-(p:Project)-[r2]-(o:Organization) 
+                WHERE f.Field_Code = '{selected_micro_code}' AND o.Name <> 'University of Naples Federico II'
+                RETURN o.City AS City, count(p) as Conteggio_Progetti, o.Name as Nome_Organizzazione
+                ORDER BY Conteggio_Progetti DESC
+            """
+    query_results = conn.query(query)
+
+    # Creazione di un DataFrame dai risultati della query
+    city_data = pd.DataFrame(query_results, columns=['City', 'Conteggio_Progetti', 'Nome_Organizzazione'])
+
+
+    # Creazione della mappa interattiva
+    @st.cache_data
+    def map_creation(micro_code):
+        if micro_code is not None:
+            # Creazione di un'istanza del geocoder Nominatim
+            geolocator = Nominatim(user_agent="my_geocoder")
+
+            # Ottenimento delle coordinate geografiche per ogni città
+            city_data['Latitude'] = np.nan
+            city_data['Longitude'] = np.nan
+
+            for index, row in city_data.iterrows():
+                city_name = row['City']
+                location = geolocator.geocode(city_name)
+                if location:
+                    latitude = location.latitude
+                    longitude = location.longitude
+                    city_data.at[index, 'Latitude'] = latitude
+                    city_data.at[index, 'Longitude'] = longitude
+
+            # Creazione del DataFrame chart_data per la visualizzazione sulla mappa
+            chart_data = city_data[['Latitude', 'Longitude', 'Conteggio_Progetti', 'Nome_Organizzazione']].copy()
+
+            # Converti il DataFrame in un elenco di dizionari
+            chart_data_dict = chart_data.to_dict('records')
+
+            # Preparo il layer per l'area col raggio specificato
+            layerArea = pdk.Layer(
+                'ScatterplotLayer',
+                data=chart_data_dict,
+                get_position='[Longitude, Latitude]',
+                get_color='[200, 75, 0, 100]',
+                get_radius='Conteggio_Progetti * 5000',
+                pickable=True,
+                auto_highlight=True,
+                extruded=True
             )
-        )
+
+            st.pydeck_chart(
+                pdk.Deck(
+                    map_style=None,
+                    initial_view_state=pdk.ViewState(
+                        latitude=42.41183986816765,
+                        longitude=12.865247589554036,
+                        zoom=5,
+                        pitch=50,
+                    ),
+                    layers=[layerArea],
+                    tooltip={
+                        "html": "<b>Nome Organizzazione: </b> {Nome_Organizzazione} <br />"
+                                "<b>Numero progetti: </b> {Conteggio_Progetti} <br />"
+                    }
+                )
+            )
 
 
-map_creation(selected_micro_code)
+    map_creation(selected_micro_code)
 
 # Selezioniamo il singolo progetto della micro-categoria selezionata
 st.write("-------------------------------------------------------------")
@@ -486,14 +564,6 @@ def format_compact_currency(amount, currency_code, fraction_digits):
     return formatted_amount
 
 
-def get_flag_name_alpha2(country_name):
-    try:
-        selected_country = pycountry.countries.get(name=country_name)
-        flag_name = pycountry.countries.get(alpha_2=selected_country.alpha_2).alpha_2.lower()
-        return flag_name
-    except (AttributeError, KeyError) as e:
-        print(f"Error: {e}")
-        return None
 
 
 # Layout a due colonne
