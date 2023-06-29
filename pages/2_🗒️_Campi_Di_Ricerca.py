@@ -175,7 +175,7 @@ count_years_chart = px.bar(df, x='year', y='projectCount', color='projectCount',
 
 count_years_chart.update_layout(
     title='Numero di Progetti per Anno',
-    width = 600
+    width = 605
 )
 
 # Creazione secondo grafico temporale a barre orizzontali
@@ -186,7 +186,7 @@ max_y = np.max(df['totalFunding']) * 1.25
 funding_years_chart.update_layout(
     title='Fondi Investiti per Anno',
     yaxis_range=[0, max_y],
-    width = 600
+    width = 605
 )
 
 # Aggiunta del simbolo dell'euro alle etichette sui fondi
