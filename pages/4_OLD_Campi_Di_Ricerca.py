@@ -1,4 +1,4 @@
-from utils import st, conn
+from utils import st, conn, today
 from streamlit_agraph import agraph, Node, Edge, Config
 import pandas as pd
 import plotly.graph_objects as go
@@ -34,7 +34,7 @@ with col1:
             """
     query_results = conn.query(query)
     macro_fields_results = [(record['Field_Code'], record['Name']) for record in query_results]
-    selected_macro_name = st.selectbox('Seleziona il settore disciplinare:', [name[1] for name in macro_fields_results], index=10)
+    selected_macro_name = st.selectbox('Seleziona la macro-categoria:', [name[1] for name in macro_fields_results], index=10)
     # Trova il Field_Code corrispondente al campo selezionato
     selected_macro_code = None
     for record in macro_fields_results:
@@ -50,100 +50,12 @@ with col2:
             """
     query_results = conn.query(query)
     micro_fields_results = [(record['Field_Code'], record['Name']) for record in query_results]
-    selected_micro_name = st.selectbox('Seleziona il dipartimento:', [name[1] for name in micro_fields_results])
+    selected_micro_name = st.selectbox('Seleziona la micro-categoria:', [name[1] for name in micro_fields_results])
     # Trova il Field_Code corrispondente al campo selezionato
     selected_micro_code = None
     for record in micro_fields_results:
         if record[1] == selected_micro_name:
             selected_micro_code = record[0]
-
-
-def format_compact_currency(amount, currency_code, fraction_digits):
-    suffixes = {
-        0: '',
-        3: 'K',
-        6: 'M',
-        9: 'Mld'
-    }
-
-    magnitude = 0
-    while abs(amount) >= 1000:
-        amount /= 1000.0
-        magnitude += 3
-
-    formatted_amount = f'{amount:.{fraction_digits}f}{suffixes[magnitude]} {currency_code}'
-    return formatted_amount
-
-
-with col1:
-    query = f"""MATCH (p:Project)-[]->(f:Field)
-                WHERE f.Field_Code = '{selected_micro_code}'
-                WITH p.Start_Date AS Date, p.Funding AS Funding, p.Publications AS Publications,
-                     size([word IN split(p.Publications, ' ') WHERE word CONTAINS 'pub.']) AS PubCount
-                RETURN
-                  substring(min(Date), 0, 2) + '/' + substring(min(Date), 3, 2) + '/' + substring(min(Date), 6, 4) AS MinDate,
-                  substring(max(Date), 0, 2) + '/' + substring(max(Date), 3, 2) + '/' + substring(max(Date), 6, 4) AS MaxDate,
-                  sum(toInteger(Funding)) AS TotalFunding,
-                  sum(PubCount) AS TotalPubCount
-                """
-    query_results = conn.query(query)
-    metric_info_results = [(record['MinDate'], record['MaxDate'], record['TotalFunding'], record['TotalPubCount'])
-                           for record in query_results]
-
-    col11, col12 = st.columns([1, 1])
-    col11.metric("Data del Primo Progetto", metric_info_results[0][0])
-    col12.metric("Data dell'Ultimo Progetto", metric_info_results[0][1])
-
-    col13, col14 = st.columns([1, 1])
-    col13.metric("Fondi Investiti", format_compact_currency(float(metric_info_results[0][2]), '€', 1))
-    col14.metric("Numero di Pubblicazioni", metric_info_results[0][3])
-
-with col2:
-    # Aggiungiamo la WordCloud per la micro-categoria selezionata
-    query = f"""MATCH (p:Project)-[]->(f:Field)
-                WHERE f.Field_Code = '{selected_micro_code}'
-                WITH p.Abstract AS testo
-                WITH testo, SPLIT(toLower(testo), ' ') AS parole
-                UNWIND parole AS parola
-                WITH REPLACE(REPLACE(REPLACE(parola, ':', ''), ',', ''), '.', '') AS word_without_punckt, 
-                    COUNT(DISTINCT testo) AS frequenza
-                WHERE frequenza > 1 AND NOT word_without_punckt IN {stopwords}
-                RETURN word_without_punckt AS parola, frequenza
-                ORDER BY frequenza DESC
-            """
-    query_results = conn.query(query)
-    frequency_results = [(record['parola'], record['frequenza']) for record in query_results]
-
-    frequency_dictionary = {}
-    for tupla in frequency_results:
-        parola = str(tupla[0])
-        frequenza = int(tupla[1])
-
-        # Rimuovi eventuali caratteri di nuova riga dal testo
-        parola = re.sub(r'\n', ' ', parola)
-
-        # Aggiungi la parola e la sua frequenza al dizionario
-        if parola in frequency_dictionary:
-            frequency_dictionary[parola] += frequenza
-        else:
-            frequency_dictionary[parola] = frequenza
-
-    wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(
-        frequency_dictionary)
-
-    # Layout a due colonne
-    col21, col22 = st.columns([1, 3])
-
-    with col21:
-        st.write("""La WordCloud permette di evidenziare i concetti più rilevanti trattati nei progetti di ricerca.
-                """)
-    with col22:
-        # Visualizza il tag cloud in Streamlit
-        fig, ax = plt.subplots()
-        ax.imshow(wordcloud, interpolation='bilinear')
-        ax.axis('off')
-        st.pyplot(fig)
-
 
 # Configurazione per Agraph
 config = Config(width=600,
@@ -157,6 +69,162 @@ config = Config(width=600,
                                        "avoidOverlap": 1}},
                 hierarchical=False
                 )
+
+nodes = []
+edges = []
+ids = []
+
+# Definizione dei colori e delle etichette della legenda
+colors = ['green', 'yellow']
+labels = ['Campo di Ricerca', 'Progetto']
+
+# Layout a due colonne
+col3, col4 = st.columns([1, 3])
+with col3:
+    # Definiamo i valori booleani per filtrare il grafo
+    st.subheader('Filtri')
+    add_researchers = st.checkbox('Visualizza i Ricercatori', key='researchers')
+    add_ongoing_projects = st.checkbox('Visualizza solo i Progetti in corso', key='ongoing_projects')
+
+    st.divider()
+
+    # Creazione della legenda
+    st.subheader('Legenda')
+    if add_researchers:
+        colors.append('#3e8ad2')
+        labels.append('Ricercatore')
+
+    for color, label in zip(colors, labels):
+        st.markdown(f'<span style="color:{color}">●</span> {label}', unsafe_allow_html=True)
+
+
+with col4:
+    if not add_ongoing_projects:
+        query = f"""MATCH (r:Researcher)-[]->(p:Project)-[]->(f:Field)
+                        WHERE f.Field_Code = '{selected_micro_code}'
+                        RETURN f AS Campo, p AS Progetto, r AS Ricercatore
+                    """
+    else:
+        query = f"""MATCH (r:Researcher)-[]->(p:Project)-[]->(f:Field)
+                                WHERE f.Field_Code = '{selected_micro_code}' AND 
+                                datetime({{year: toInteger(split(p.End_Date, '/')[2]),
+                                month: toInteger(split(p.End_Date, '/')[1]),
+                                day: toInteger(split(p.End_Date, '/')[0])}})
+                                > datetime('{today}')
+                                RETURN f AS Campo, p AS Progetto, r AS Ricercatore
+                            """
+    query_results = conn.query(query)
+    results = [(record['Campo'], record['Progetto'], record['Ricercatore']) for record in query_results]
+
+    for record in results:
+        field = record[0]
+        if field.element_id not in ids:
+            ids.append(field.element_id)
+            if field["Name"] != 'NaN':
+                nodes.append(Node(id=field.element_id,
+                                  title=field["Name"],
+                                  size=15,
+                                  color='green')
+                             )
+            else:
+                nodes.append(Node(id=field.element_id,
+                                  title="Non Definito",
+                                  size=15,
+                                  color='green')
+                             )
+
+        project = record[1]
+        if project.element_id not in ids:
+            ids.append(project.element_id)
+            if project["Title"] != 'NaN':
+                nodes.append(Node(id=project.element_id,
+                                  title=project["Title"],
+                                  size=10,
+                                  color='yellow')
+                             )
+            else:
+                nodes.append(Node(id=project.element_id,
+                                  title="Non Definito",
+                                  size=10,
+                                  color='yellow')
+                             )
+
+        edges.append(Edge(source=project.element_id,
+                          label="Riguarda",
+                          target=field.element_id,
+                          color='grey',
+                          font={'size': 10}
+                          )
+                     )
+
+        if add_researchers:
+            researcher = record[2]
+            if researcher.element_id not in ids:
+                ids.append(researcher.element_id)
+                if researcher["Name"] != 'NaN':
+                    nodes.append(Node(id=researcher.element_id,
+                                      title=researcher["Name"],
+                                      size=8,
+                                      color='#3e8ad2')
+                                 )
+                else:
+                    nodes.append(Node(id=researcher.element_id,
+                                      title="Non Definito",
+                                      size=8,
+                                      color='#3e8ad2')
+                                 )
+
+            edges.append(Edge(source=researcher.element_id,
+                              label="Ricerca",
+                              target=project.element_id,
+                              color='grey',
+                              font={'size': 10}
+                              )
+                         )
+
+    agraph(nodes=nodes, edges=edges, config=config)
+
+# Costruiamo la tabella dei progetti appartenenti alla micro-categoria selezionata
+
+if not add_ongoing_projects:
+    query = f"""MATCH (p:Project)-[]->(f:Field)
+                WHERE f.Field_Code = '{selected_micro_code}'
+                RETURN p.Title AS Titolo, p.Funding as Fondi, p.Start_Date AS DataInizio,
+                        p.End_Date as DataFine, p.Funder as Finanziatore, p.Funder_Group as Gruppo,
+                        p.Program AS Programma
+                ORDER BY Titolo
+            """
+else:
+    query = f"""MATCH (p:Project)-[]->(f:Field)
+                WHERE f.Field_Code = '{selected_micro_code}' AND 
+                        datetime({{year: toInteger(split(p.End_Date, '/')[2]),
+                        month: toInteger(split(p.End_Date, '/')[1]),
+                        day: toInteger(split(p.End_Date, '/')[0])}})
+                        > datetime('{today}')
+                RETURN p.Title AS Titolo, p.Funding as Fondi, p.Start_Date AS DataInizio,
+                        p.End_Date as DataFine, p.Funder as Finanziatore, p.Funder_Group as Gruppo,
+                        p.Program AS Programma
+                ORDER BY Titolo
+            """
+
+query_results = conn.query(query)
+results = [(
+        'Non Definito' if record['Titolo'] == 'NaN' else record['Titolo'],
+        'Non Definito' if record['Fondi'] == 'NaN' else record['Fondi'],
+        'Non Definito' if record['DataInizio'] == 'NaN' else record['DataInizio'],
+        'Non Definito' if record['DataFine'] == 'NaN' else record['DataFine'],
+        'Non Definito' if record['Finanziatore'] == 'NaN' else record['Finanziatore'],
+        'Non Definito' if record['Gruppo'] == 'NaN' else record['Gruppo'],
+        'Non Definito' if record['Programma'] == 'NaN' else record['Programma'])
+    for record in query_results
+]
+
+columns = ['Titolo', 'Fondi Investiti (€)', 'Data di Inizio', 'Data di Fine', 'Finanziatore',
+           'Gruppo di Finanziamento', 'Programma']
+
+df = pd.DataFrame(results, columns=columns)
+df.set_index('Titolo', inplace=True)
+st.write(df)
 
 # Istogrammi numero di progetti e fondi investiti nel tempo
 query = f"""MATCH (p:Project)-[]->(f:Field)
@@ -200,8 +268,53 @@ with col5:
 with col6:
     st.plotly_chart(fig_funding)
 
-st.header("Mappa delle Collaborazioni")
-st.write("In questa sezione bla bla bla")
+# Aggiungiamo la WordCloud per la micro-categoria selezionata
+query = f"""MATCH (p:Project)-[]->(f:Field)
+            WHERE f.Field_Code = '{selected_micro_code}'
+            WITH p.Abstract AS testo
+            WITH testo, SPLIT(toLower(testo), ' ') AS parole
+            UNWIND parole AS parola
+            WITH REPLACE(REPLACE(REPLACE(parola, ':', ''), ',', ''), '.', '') AS word_without_punckt, 
+                COUNT(DISTINCT testo) AS frequenza
+            WHERE frequenza > 1 AND NOT word_without_punckt IN {stopwords}
+            RETURN word_without_punckt AS parola, frequenza
+            ORDER BY frequenza DESC
+        """
+query_results = conn.query(query)
+frequency_results = [(record['parola'], record['frequenza']) for record in query_results]
+
+frequency_dictionary = {}
+for tupla in frequency_results:
+    parola = str(tupla[0])
+    frequenza = int(tupla[1])
+
+    # Rimuovi eventuali caratteri di nuova riga dal testo
+    parola = re.sub(r'\n', ' ', parola)
+
+    # Aggiungi la parola e la sua frequenza al dizionario
+    if parola in frequency_dictionary:
+        frequency_dictionary[parola] += frequenza
+    else:
+        frequency_dictionary[parola] = frequenza
+
+wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(frequency_dictionary)
+
+# Layout a due colonne
+col7, col8 = st.columns([1, 3])
+
+with col7:
+    st.write("Spiegazione WordCloud")
+with col8:
+    # Visualizza il tag cloud in Streamlit
+    fig, ax = plt.subplots()
+    ax.imshow(wordcloud, interpolation='bilinear')
+    ax.axis('off')
+    st.pyplot(fig)
+
+st.write("-------------------------------------------------------------")
+st.header("Mappa geografica")
+st.write("Mappa geografica per visualizzare le città che hanno interagito maggiormente nel micro-campo precedentemente "
+         "selezionato. ")
 
 
 def get_flag_name_alpha2(country_name):
@@ -219,13 +332,13 @@ column_widths = [37, 63]
 
 col9, col10 = st.columns(column_widths)
 with col9:
+
+
     # Esegui la query per ottenere i dati dei paesi
     query = f"""MATCH (f:Field)-[r1]-(p:Project)-[r2]-(o:Organization) 
                     WHERE f.Field_Code = '{selected_micro_code}' AND o.Name <> 'University of Naples Federico II'
-                    WITH o.Country AS Country, o.Name AS Nome_Organizzazione, count(DISTINCT p) AS Conteggio_Progetti,
-                        count(DISTINCT o) AS Conteggio_Organizzazioni
-                    WITH Country, sum(Conteggio_Progetti) AS Totale_Progetti,
-                        count(Nome_Organizzazione) AS Totale_Organizzazioni
+                    WITH o.Country AS Country, o.Name AS Nome_Organizzazione, count(DISTINCT p) AS Conteggio_Progetti, count(DISTINCT o) AS Conteggio_Organizzazioni
+                    WITH Country, sum(Conteggio_Progetti) AS Totale_Progetti, count(Nome_Organizzazione) AS Totale_Organizzazioni
                     RETURN Country, Totale_Organizzazioni, Totale_Progetti
                     ORDER BY Totale_Progetti DESC
                 """
@@ -259,21 +372,15 @@ with col9:
     country_data.insert(loc=3, column='Flag', value=colonnaFlag)
 
     # Aggiungi una stringa prefissa ai valori delle colonne
-    country_data['Totale_Organizzazioni'] = country_data['Totale_Organizzazioni'].astype(str)
-    country_data['Totale_Progetti'] = country_data['Totale_Progetti'].astype(str)
+    country_data['Totale_Organizzazioni'] = 'Organizzazioni: ' + country_data['Totale_Organizzazioni'].astype(
+        str)
+    country_data['Totale_Progetti'] = 'Progetti: ' + country_data['Totale_Progetti'].astype(str)
 
     # Riordina le colonne del DataFrame
     country_data = country_data[['Flag', 'Country', 'Totale_Organizzazioni', 'Totale_Progetti']]
 
-    # Rinomina le colonne
-    country_data = country_data.rename(columns={'Flag': '',
-                                                'Country': '',
-                                                'Totale_Organizzazioni': 'Organizzazioni',
-                                                'Totale_Progetti': 'Progetti'}
-                                       )
-
     # Converti il DataFrame in HTML e rimuovi l'indice e l'intestazione
-    table_html = country_data.to_html(escape=False, index=False)
+    table_html = country_data.to_html(escape=False, index=False, header=False)
 
     # CSS personalizzato per creare una tabella con uno scroll e senza bordi
     table_style = """
@@ -366,39 +473,10 @@ with col10:
 
     map_creation(selected_micro_code)
 
-st.divider()
-
-# Costruiamo la tabella dei progetti appartenenti alla micro-categoria selezionata
-st.header('Progetti di '+selected_micro_name)
-
-query = f"""MATCH (p:Project)-[]->(f:Field)
-            WHERE f.Field_Code = '{selected_micro_code}'
-            RETURN p.Title AS Titolo, p.Funding as Fondi, p.Start_Date AS DataInizio,
-                    p.End_Date as DataFine, p.Funder as Finanziatore, p.Funder_Group as Gruppo,
-                    p.Program AS Programma
-            ORDER BY Titolo
-        """
-query_results = conn.query(query)
-results = [(
-        'Non Definito' if record['Titolo'] == 'NaN' else record['Titolo'],
-        'Non Definito' if record['Fondi'] == 'NaN' else format_compact_currency(float(record['Fondi']), '€', 1),
-        'Non Definito' if record['DataInizio'] == 'NaN' else record['DataInizio'],
-        'Non Definito' if record['DataFine'] == 'NaN' else record['DataFine'],
-        'Non Definito' if record['Finanziatore'] == 'NaN' else record['Finanziatore'],
-        'Non Definito' if record['Gruppo'] == 'NaN' else record['Gruppo'],
-        'Non Definito' if record['Programma'] == 'NaN' else record['Programma'])
-    for record in query_results
-]
-
-columns = ['Titolo', 'Fondi Investiti', 'Data di Inizio', 'Data di Fine', 'Finanziatore',
-           'Gruppo di Finanziamento', 'Programma']
-
-df = pd.DataFrame(results, columns=columns)
-df.set_index('Titolo', inplace=True)
-st.dataframe(df)
-
 # Selezioniamo il singolo progetto della micro-categoria selezionata
-st.write("In questa sezione bla bla bla")
+st.write("-------------------------------------------------------------")
+st.header("Seleziona Progetto Microcategoria")
+st.write("In questa sezione è possibile visualizzare le info su uno dei progetti della microcategoria selezionata ")
 
 query = f"""MATCH (p:Project)-[]->(f:Field)
             WHERE f.Field_Code = "{selected_micro_code}"
@@ -466,6 +544,26 @@ ids_project = []
 colors_project = ['#3e8ad2', 'yellow', 'orange']
 labels_project = ['Ricercatore', 'Progetto', 'Organizzazioni']
 
+
+def format_compact_currency(amount, currency_code, fraction_digits):
+    suffixes = {
+        0: '',
+        3: 'K',
+        6: 'M',
+        9: 'Mld'
+    }
+
+    magnitude = 0
+    while abs(amount) >= 1000:
+        amount /= 1000.0
+        magnitude += 3
+
+    formatted_amount = f'{amount:.{fraction_digits}f}{suffixes[magnitude]} {currency_code}'
+    return formatted_amount
+
+
+
+
 # Layout a due colonne
 col9, col10 = st.columns([40, 60])
 
@@ -475,9 +573,9 @@ with col9:
     col92.metric("Data di Fine", project_info[0][4])
 
     funding_delta = float(project_info[0][2]) - funding_mean
-    col91.metric("Fondi Investiti", format_compact_currency(float(project_info[0][2]), '€', 1),
+    col91.metric("Fondi investiti", format_compact_currency(float(project_info[0][2]), '€', 1),
                  delta=format_compact_currency(funding_delta, '€', 1), delta_color="normal",
-                 help="Viene riportato un confronto con la media dei fondi investiti nel dipartimento selezionato"
+                 help="Numero di fondi investiti e confronto con la media della micro"
                  )
     col92.metric("Numero di Pubblicazioni", project_info[0][7].count("pub."))
 
@@ -503,44 +601,42 @@ with col9:
     query_results = conn.query(query)
     country_results = [record['Country'] for record in query_results]
 
-    if len(country_results) > 0:
-        if len(country_results) > 1 or (len(country_results) == 1 and country_results[0] != 'Italy'):
-            st.write(
-                '''
-                {}
-                '''
-                .format(
-                    f'<p style="font-size: 1rem; font-family: Source Serif Pro; margin-top: 0px; margin-bottom: 10px;">Internazionalità del progetto</p>'
-                ),
-                unsafe_allow_html=True
-            )
+    st.write(
+        '''
+        {}
+        '''
+        .format(
+            f'<p style="font-size: 1rem; font-family: Source Serif Pro; margin-top: 0px; margin-bottom: 10px;">Internazionalità del progetto</p>'
+        ),
+        unsafe_allow_html=True
+    )
 
-            # Inizializza la stringa per il codice HTML delle immagini
-            full_images_encoded = ""
-            width = 40
-            height = 40
+    # Inizializza la stringa per il codice HTML delle immagini
+    full_images_encoded = ""
+    width = 40
+    height = 40
 
-            for country in country_results:
-                country_code = get_flag_name_alpha2(country)
-                if country_code:
-                    # Leggi il contenuto dell'immagine SVG
-                    with open(f"utility/flags/{country_code}.svg", "r") as f:
-                        svg_content = f.read()
+    for country in country_results:
+        country_code = get_flag_name_alpha2(country)
+        if country_code:
+            # Leggi il contenuto dell'immagine SVG
+            with open(f"utility/flags/{country_code}.svg", "r") as f:
+                svg_content = f.read()
 
-                    # Codifica il contenuto dell'immagine in base64
-                    encoded_svg = base64.b64encode(svg_content.encode("utf-8")).decode("utf-8")
+            # Codifica il contenuto dell'immagine in base64
+            encoded_svg = base64.b64encode(svg_content.encode("utf-8")).decode("utf-8")
 
-                    # Genera il codice HTML per visualizzare l'immagine SVG con dimensioni ridotte
-                    image_encoded = f'''<img src="data:image/svg+xml;base64,{encoded_svg}" width="{width}" height="{height}"
-                                        style="margin-right: 10px; margin-bottom: 10px;">
-                                    '''
-                    # Concatena il codice HTML all'interno della stringa per visualizzare le immagini una accanto all'altra
-                    full_images_encoded += image_encoded
+            # Genera il codice HTML per visualizzare l'immagine SVG con dimensioni ridotte
+            image_encoded = f'''<img src="data:image/svg+xml;base64,{encoded_svg}" width="{width}" height="{height}"
+                                style="margin-right: 10px; margin-bottom: 10px;">
+                            '''
+            # Concatena il codice HTML all'interno della stringa per visualizzare le immagini una accanto all'altra
+            full_images_encoded += image_encoded
 
-            # Visualizza le immagini SVG
-            st.markdown(full_images_encoded, unsafe_allow_html=True)
+    # Visualizza le immagini SVG
+    st.markdown(full_images_encoded, unsafe_allow_html=True)
 
-            st.divider()
+    st.divider()
 
     # Visualizzazione interdisciplinarità
     query = f"""MATCH (p:Project)-[]->(f:Field)
