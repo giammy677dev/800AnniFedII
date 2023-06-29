@@ -204,7 +204,7 @@ query_results = conn.query(query)
 df = pd.DataFrame(query_results, columns=['cancerType', 'TotalFunding'])
 
 # Creare il grafico a barre
-count_anno_chart = px.bar(df, y='cancerType', x='TotalFunding', color='TotalFunding', color_continuous_scale='Turbo', orientation='h', labels={'TotalFunding': 'Fondi Investiti', 'cancerType' : 'Tipologia Cancro'})
+count_anno_chart = px.bar(df, y='cancerType', x='TotalFunding', color='TotalFunding', color_continuous_scale='Turbo', orientation='h', labels={'TotalFunding': 'Fondi Investiti (€)', 'cancerType' : 'Tipologia Cancro'})
 
 # ordine del grafico
 count_anno_chart.update_layout(
@@ -272,7 +272,7 @@ query_results = conn.query(query)
 df = pd.DataFrame(query_results, columns=['Etichetta', 'Totale_Fondi'])
 
 # Creare il grafico a barre
-count_anno_chart = px.bar(df, y='Etichetta', x='Totale_Fondi', color='Totale_Fondi', color_continuous_scale='Turbo', orientation='h', labels={'Totale_Fondi': 'Fondi Investiti', 'Etichetta' : 'Campo di Interesse'})
+count_anno_chart = px.bar(df, y='Etichetta', x='Totale_Fondi', color='Totale_Fondi', color_continuous_scale='Turbo', orientation='h', labels={'Totale_Fondi': 'Fondi Investiti (€)', 'Etichetta' : 'Campo di Interesse'})
 
 # Aggiunta del simbolo dell'euro alle etichette sui fondi
 count_anno_chart.update_xaxes(ticksuffix='€')

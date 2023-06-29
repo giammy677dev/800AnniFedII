@@ -11,6 +11,7 @@ from geopy.geocoders import Nominatim
 import re
 import pycountry
 import base64
+import plotly.express as px
 
 st.set_page_config(
     page_title="Campi di Ricerca",
@@ -132,18 +133,17 @@ with col2:
         frequency_dictionary)
 
     # Layout a due colonne
-    col21, col22 = st.columns([1, 3])
+    col21, col22 = st.columns([3, 1])
 
     with col21:
-        st.write("""La WordCloud permette di evidenziare i concetti più rilevanti trattati nei progetti di ricerca.
-                """)
-    with col22:
         # Visualizza il tag cloud in Streamlit
         fig, ax = plt.subplots()
         ax.imshow(wordcloud, interpolation='bilinear')
         ax.axis('off')
         st.pyplot(fig)
-
+    with col22:
+        st.write("""La WordCloud permette di evidenziare i concetti più rilevanti trattati nei progetti di ricerca.
+                        """)
 
 # Configurazione per Agraph
 config = Config(width=600,
@@ -168,41 +168,49 @@ results = conn.query(query)
 columns = ['year', 'projectCount', 'totalFunding']
 
 # Mettiamo i risultati in un DataFrame
-df_projects = pd.DataFrame(results, columns=columns)
+df = pd.DataFrame(results, columns=columns)
 
-# Creazione del grafico temporale per il numero di progetti anno per anno
-fig_projects = go.Figure(data=go.Bar(x=df_projects['year'], y=df_projects['projectCount']))
+# Creazione primo grafico temporale a barre orizzontali
+count_years_chart = px.bar(df, x='year', y='projectCount', color='projectCount', color_continuous_scale='Jet', labels={'year': 'Anno', 'projectCount' : 'Conteggio Progetti'})
 
-# Personalizzazione del grafico dei progetti
-fig_projects.update_layout(
+count_years_chart.update_layout(
     title='Numero di Progetti per Anno',
-    xaxis_title='Anno',
-    yaxis_title='Conteggio Progetti',
-    yaxis=dict(tickvals=np.arange(0, max(df_projects['projectCount']) + 1, 1))  # Valori dei tick come numeri interi
+    width = 600
 )
 
-# Creazione del grafico temporale per il numero di fondi investiti anno per anno
-fig_funding = go.Figure(data=go.Bar(x=df_projects['year'], y=df_projects['totalFunding']))
+# Creazione secondo grafico temporale a barre orizzontali
+funding_years_chart = px.bar(df, x='year', y='totalFunding', color='totalFunding', color_continuous_scale='Jet', labels={'year': 'Anno', 'totalFunding' : 'Fondi Investiti (€)'})
 
 # Personalizzazione del grafico dei fondi investiti
-max_y = np.max(df_projects['totalFunding']) * 1.25
-fig_funding.update_layout(
+max_y = np.max(df['totalFunding']) * 1.25
+funding_years_chart.update_layout(
     title='Fondi Investiti per Anno',
-    xaxis_title='Anno',
     yaxis_range=[0, max_y],
-    yaxis_title='Fondi Investiti (€)'
+    width = 600
 )
+
+# Aggiunta del simbolo dell'euro alle etichette sui fondi
+funding_years_chart.update_yaxes(ticksuffix='€')
+
+# Modifiche etichette visualizzabili passando col mouse sulla barra
+funding_years_chart.update_traces(
+    customdata=df[['totalFunding', 'year']].values,
+    hovertemplate='Anno: %{customdata[1]}<br>Fondi: %{customdata[0]} €'
+)
+
+# Aggiunta del simbolo dell'euro alle etichette del riferimento dei colori
+funding_years_chart.update_coloraxes(colorbar=dict(ticksuffix='€'))
 
 # Mostra i grafici su due colonne
 col5, col6 = st.columns([1, 1])
 with col5:
-    st.plotly_chart(fig_projects)
+    st.plotly_chart(count_years_chart)
 with col6:
-    st.plotly_chart(fig_funding)
+    st.plotly_chart(funding_years_chart)
+
 
 st.header("Mappa delle Collaborazioni")
 st.write("In questa sezione bla bla bla")
-
 
 def get_flag_name_alpha2(country_name):
     try:
@@ -286,7 +294,7 @@ with col9:
         text-align: center;
     }
     .scrollable {
-        height: 485px; 
+        max-height: 485px; 
         overflow: auto;
     }
     </style>
