@@ -323,7 +323,7 @@ def get_flag_name_alpha2(country_name):
         return flag_name
     except (AttributeError, KeyError) as e:
         print(f"Error: {e}")
-        return None
+        return 'NoFlag'
 
 # Specifica la larghezza percentuale per ciascuna colonna
 column_widths = [37, 63]
@@ -364,18 +364,16 @@ with col9:
             encoded_svg = base64.b64encode(svg_content.encode("utf-8")).decode("utf-8")
 
             # Genera il codice HTML per visualizzare l'immagine SVG con dimensioni ridotte
-            image_encoded = f'''<img src="data:image/svg+xml;base64,{encoded_svg}" width="{width}" height="{height}"
-                                    style="margin-right: 10px; margin-bottom: 10px;">
-                                '''
+            image_encoded = f'''<img src="data:image/svg+xml;base64,{encoded_svg}" width="{width}" height="{height}" style="margin-right: 10px; margin-bottom: 10px;">'''
             colonnaFlag.append(image_encoded)
 
     country_data.insert(loc=3, column='Flag', value=colonnaFlag)
 
 
     # Aggiungi una stringa prefissa ai valori delle colonne
-    country_data['Totale_Organizzazioni'] = 'Organizzazioni ' + country_data['Totale_Organizzazioni'].astype(
+    country_data['Totale_Organizzazioni'] = 'Organizzazioni: ' + country_data['Totale_Organizzazioni'].astype(
         str)
-    country_data['Totale_Progetti'] = 'Progetti ' + country_data['Totale_Progetti'].astype(str)
+    country_data['Totale_Progetti'] = 'Progetti: ' + country_data['Totale_Progetti'].astype(str)
 
     # Riordina le colonne del DataFrame
     country_data = country_data[['Flag', 'Country', 'Totale_Organizzazioni', 'Totale_Progetti']]
@@ -387,7 +385,6 @@ with col9:
     table_style = """
     <style>
     table {
-        width: 50% !important;
         border: none !important;
     }
     table td, table th {
