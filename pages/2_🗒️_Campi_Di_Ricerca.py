@@ -133,18 +133,17 @@ with col2:
         frequency_dictionary)
 
     # Layout a due colonne
-    col21, col22 = st.columns([3, 1])
+    col21, col22 = st.columns([1, 3])
 
     with col21:
+        st.write("""La WordCloud permette di evidenziare i concetti più rilevanti trattati nei progetti di ricerca.
+                                """)
+    with col22:
         # Visualizza il tag cloud in Streamlit
         fig, ax = plt.subplots()
         ax.imshow(wordcloud, interpolation='bilinear')
         ax.axis('off')
         st.pyplot(fig)
-    with col22:
-        st.write("""La WordCloud permette di evidenziare i concetti più rilevanti trattati nei progetti di ricerca.
-                        """)
-
 # Configurazione per Agraph
 config = Config(width=600,
                 height=650,
@@ -174,8 +173,7 @@ df = pd.DataFrame(results, columns=columns)
 count_years_chart = px.bar(df, x='year', y='projectCount', color='projectCount', color_continuous_scale='Jet', labels={'year': 'Anno', 'projectCount' : 'Conteggio Progetti'})
 
 count_years_chart.update_layout(
-    title='Numero di Progetti per Anno',
-    width = 605
+    title='Numero di Progetti per Anno'
 )
 
 # Creazione secondo grafico temporale a barre orizzontali
@@ -185,8 +183,7 @@ funding_years_chart = px.bar(df, x='year', y='totalFunding', color='totalFunding
 max_y = np.max(df['totalFunding']) * 1.25
 funding_years_chart.update_layout(
     title='Fondi Investiti per Anno',
-    yaxis_range=[0, max_y],
-    width = 605
+    yaxis_range=[0, max_y]
 )
 
 # Aggiunta del simbolo dell'euro alle etichette sui fondi
