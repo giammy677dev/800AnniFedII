@@ -375,7 +375,7 @@ st.header('Progetti di '+selected_micro_name)
 
 st.write("""Di seguito viene riportata una tabella che mostra una serie di informazioni relative ai progetti di
         ricerca. Inoltre, più in basso, è possibile selezionare uno specifico progetto in modo da poter visualizzare
-        ulteriori informazioni quali, ad esempio, la data di inizio e di fine del progetto, i fondi investito, il numero
+        ulteriori informazioni quali, ad esempio, la data di inizio e di fine del progetto, i fondi investiti, il numero
         di pubblicazioni effettuate, le organizzazioni ed i ricercatori che hanno partecipato e, eventualmente,
         gli attributi di internazionalità ed interdisciplinarità.
         """)
