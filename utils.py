@@ -7,6 +7,7 @@ from streamlit_agraph import agraph, Node, Edge, Config
 
 today = date.today()
 
+
 class Neo4jConnection:
     def __init__(self, uri, user, pwd):
         self.__uri = uri
