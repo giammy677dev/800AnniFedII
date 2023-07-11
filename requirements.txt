@@ -1,0 +1,8 @@
+neo4j
+pandas
+streamlit
+wordcloud
+matplotlib
+numpy
+plotly
+datetime
