@@ -8,3 +8,4 @@ plotly
 datetime
 streamlit_agraph
 geopy
+pycountry
