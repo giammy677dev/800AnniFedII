@@ -44,21 +44,19 @@ elenco_bullet("Mappa di Sintesi", """in questa sezione riportiamo un grafo in cu
 
 st.divider()
 
-# Layout a due colonne
-col1, col2 = st.columns([1, 1])
+# Primo div con testo all'estrema sinistra
+st.markdown("<div style='text-align: left; width: 45%; float: left; margin-left: 25px'>"
+            "<p><b style='color: #3e8ad2;'>Ing.</b> Orlando Gian Marco</p>"
+            "<p><b style='color: #3e8ad2;'>Ing.</b> Perillo Marco</p>"
+            "<p><b style='color: #3e8ad2;'>Ing.</b> Russo Diego</p>"
+            "</div>"
+            "<div style='text-align: right; width: 45%; float: right; margin-right: 25px'>"
+            "<p><b style='color: #3e8ad2;'>Prof.</b> Moscato Vincenzo</p>"
+            "<p><b style='color: #3e8ad2;'>Dott.</b> Ferrara Antonino</p>"
+            "<p><b style='color: #3e8ad2;'>Dott.</b> Galli Antonio</p>"
+            "<p><b style='color: #3e8ad2;'>Dott.</b> La Gatta Valerio</p>"
+            "<p><b style='color: #3e8ad2;'>Dott.</b> Postiglione Marco</p>"
+            "</div>",
+            unsafe_allow_html=True)
 
-with col1:
-    st.markdown(f"<span style='color:#3e8ad2'><b>Ing.</b></span> Orlando Gian Marco", unsafe_allow_html=True)
-    st.markdown(f"<span style='color:#3e8ad2'><b>Ing.</b></span> Perillo Marco", unsafe_allow_html=True)
-    st.markdown(f"<span style='color:#3e8ad2'><b>Ing.</b></span> Russo Diego", unsafe_allow_html=True)
-with col2:
-    st.markdown(f"<span style='color:#3e8ad2; text-align:right'><b>Prof.</b></span> Moscato Vincenzo",
-                unsafe_allow_html=True)
-    st.markdown(f"<span style='color:#3e8ad2; text-align:right'><b>Dott.</b></span> Ferrara Antonino",
-                unsafe_allow_html=True)
-    st.markdown(f"<span style='color:#3e8ad2; text-align:right'><b>Dott.</b></span> Galli Antonio",
-                unsafe_allow_html=True)
-    st.markdown(f"<span style='color:#3e8ad2; text-align:right'><b>Dott.</b></span> La Gatta Valerio",
-                unsafe_allow_html=True)
-    st.markdown(f"<span style='color:#3e8ad2; text-align:right'><b>Dott.</b></span> Postiglione Marco",
-                unsafe_allow_html=True)
+
