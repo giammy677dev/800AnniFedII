@@ -17,8 +17,12 @@ st.set_page_config(
 
 st.title('📚 Campi di Ricerca')
 
-st.write('''In questa sezione bla bla bla.
-        ''')
+st.write("""In questa sezione riportiamo una serie di informazioni rispetto ai settori in cui l'Università
+            Federico II ha finanziato o co-finanziato progetti di ricerca. Inoltre, viene riportata anche una mappa
+            interattiva che mostra le collaborazioni effettuate dall'Università Federico II con Università da tutto il
+            mondo. Infine, viene riportato anche un approfondimento grafico relativo ai singoli progetti del settore
+            selezionato.
+        """)
 
 # Layout a due colonne
 col1, col2 = st.columns([1, 1])
@@ -197,7 +201,10 @@ with col6:
 
 
 st.header("Mappa delle Collaborazioni")
-st.write("In questa sezione bla bla bla")
+st.write("""Di seguito viene riportata una mappa interattiva in cui vengono mostrate le organizzazioni (tra Università
+            ed aziende di vario tipo) con cui l'Università Federico II ha collaborato per la realizzazione dei progetti
+            di ricerca del settore selezionato.
+        """)
 
 def get_flag_name_alpha2(country_name):
     try:
@@ -366,6 +373,13 @@ st.divider()
 # Costruiamo la tabella dei progetti appartenenti alla micro-categoria selezionata
 st.header('Progetti di '+selected_micro_name)
 
+st.write("""Di seguito viene riportata una tabella che mostra una serie di informazioni relative ai progetti di
+        ricerca. Inoltre, più in basso, è possibile selezionare uno specifico progetto in modo da poter visualizzare
+        ulteriori informazioni quali, ad esempio, la data di inizio e di fine del progetto, i fondi investito, il numero
+        di pubblicazioni effettuate, le organizzazioni ed i ricercatori che hanno partecipato e, eventualmente,
+        gli attributi di internazionalità ed interdisciplinarità.
+        """)
+
 query = f"""MATCH (p:Project)-[]->(f:Field)
             WHERE f.Field_Code = '{selected_micro_code}'
             RETURN p.Title AS Titolo, p.Funding as Fondi, p.Start_Date AS DataInizio,
@@ -393,8 +407,6 @@ df.set_index('Titolo', inplace=True)
 st.dataframe(df)
 
 # Selezioniamo il singolo progetto della micro-categoria selezionata
-st.write("In questa sezione bla bla bla")
-
 query = f"""MATCH (p:Project)-[]->(f:Field)
             WHERE f.Field_Code = "{selected_micro_code}"
             RETURN p.ID as ID, p.Title AS Titolo, p.Funding as Fondi

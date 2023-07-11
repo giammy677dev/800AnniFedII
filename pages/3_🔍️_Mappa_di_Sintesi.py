@@ -8,8 +8,9 @@ st.set_page_config(
 
 st.title('🔍 Mappa di Sintesi')
 
-st.write('''In questa sezione bla bla bla.
-        ''')
+st.write("""In questa sezione riportiamo un grafo in cui viene mostrato visivamente un riassunto riguardo uno specifico
+            macro-settore, evidenziando i collegamenti che intercorrono con i settori ed i progetti relativi.
+        """)
 
 # Aggiungiamo il filtro per selezionare la macro-categoria
 query = """MATCH (f:Field) WHERE toInteger(f.Field_Code) < 99 AND f.Name <> 'NaN'

@@ -8,7 +8,10 @@ st.set_page_config(
 )
 
 st.title("🎖️Eccellenze")
-st.write("Piccola introduzione")
+st.write("""In questa sezione riportiamo tutti i campi di ricerca in cui l'Università Federico II si è distinta. Vengono
+            riportati diversi grafici relativi al numero di progetti ed ai fondi investiti, suddivisi per macro-settori
+            disciplinari. Inoltre, viene riportato anche un approfondimento riguardo due tematiche molto attuali quali la
+            ricerca sul cancro e la ricerca riguardo la sostenibilità ambientale.""")
 
 # Definisci il valore minimo e massimo dell'intervallo per lo slider
 year_range = st.slider("Seleziona il periodo temporale da analizzare", min_value=1970, max_value=2023, value=(2010, 2023))
@@ -81,9 +84,10 @@ st.plotly_chart(count_anno_chart, use_container_width=True)
 
 st.divider()
 st.header("Trend nel tempo")
-st.write("Di seguito viene riportato un grafico che mostra come varia nel tempo il numero di progetti di ogni"
-         " macro-settore. Tale grafico è utile per effettuare un confronto tra i diversi macro-settori al fine "
-         "di individuare su quali l'Università Federico II si è focalizzata maggiormente.")
+st.write("""Di seguito viene riportato un grafico che mostra come varia nel tempo il numero di progetti di ogni
+            macro-settore. Tale grafico permette di individuare quali sono, nel tempo, i campi di ricerca in cui
+            l'Università Federico II ha deciso di investire maggiormente.
+         """)
 
 
 # Query per conteggio macro-categorie nel tempo
@@ -120,11 +124,9 @@ st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 st.header("Healthcare")
-st.write("In questo settore vengono effettuate le analisi inerenti ai progetti sull'Healthcare. "
-         "Innanzitutto possiamo visualizzare la percentuale di progetti effettuati nel campo medico e, "
-         "sulla base di questi, andiamo a considerare la percentuale specifica di progetti incentrati sul cancro. "
-         "Successivamente troviamo le analisi sul cancro, mostrando il numero di progetti e i fondi investiti "
-         "per ogni tipologia.")
+st.write("""Di seguito vengono riportate una serie di analitiche inerenti ai progetti sull'healthcare. In particolare,
+            viene riportato un approfondimento riguardo i progetti dedicati alla ricerca sul cancro.
+         """)
 
 # Esecuzione della query per numero totale progetti
 numeroTotProgetti = conn.query("""MATCH (p:Project) RETURN count(*)""")
@@ -232,8 +234,9 @@ st.plotly_chart(count_anno_chart, use_container_width=True)
 
 st.divider()
 st.header("Progetti sulla sostenibilità ambientale")
-st.write("In questo settore vengono effettuate le analisi inerenti ai progetti sulla sostenibilità ambientale. "
-         "Nello specifico vengono mostrati il numero di progetti e i fondi investiti per ogni campo ambientale.")
+st.write("""Di seguito vengono riportate una serie di analitiche inerenti ai progetti sulla sostenibilità ambientale.
+            In particolare, vengono mostrati il numero di progetti ed i fondi investiti per ogni campo di interesse.
+         """)
 
 query = """MATCH (p:Project)
             WHERE p.Sustainable_Goals <> 'NaN'

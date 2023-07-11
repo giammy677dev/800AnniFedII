@@ -30,14 +30,16 @@ elenco_bullet("Eccellenze", """in questa sezione riportiamo tutti i campi di ric
                             approfondimento riguardo due tematiche molto attuali quali la ricerca sul cancro e la ricerca
                             riguardo la sostenibilità ambientale;
                             """)
-elenco_bullet("Campi di Ricerca", """in questa sezione riportiamo una serie di informazioni rispetto ai micro-settori in
+elenco_bullet("Campi di Ricerca", """in questa sezione riportiamo una serie di informazioni rispetto ai settori in
                                     cui l'Università Federico II ha finanziato o co-finanziato progetti di ricerca. Inoltre,
                                     viene riportata anche una mappa interattiva che mostra le collaborazioni effettuate
-                                    dall'Università Federico II con Università da tutto il mondo;
+                                    dall'Università Federico II con Università da tutto il mondo. Infine, viene riportato
+                                    anche un approfondimento grafico relativo ai singoli progetti del settore
+                                    selezionato;
                                     """)
 elenco_bullet("Mappa di Sintesi", """in questa sezione riportiamo un grafo in cui viene mostrato visivamente un riassunto
                                   riguardo uno specifico macro-settore, evidenziando i collegamenti che intercorrono 
-                                  con i micro-settori ed i progetti relativi.
+                                  con i settori ed i progetti relativi.
                                   """)
 
 st.divider()
