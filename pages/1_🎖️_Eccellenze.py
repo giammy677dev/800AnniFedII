@@ -79,9 +79,11 @@ count_anno_chart.update_layout(
 
 st.plotly_chart(count_anno_chart, use_container_width=True)
 
-st.write("----------------------------------------------------")
+st.divider()
 st.header("Trend nel tempo")
-st.write("Piccola presentazione")
+st.write("Di seguito viene riportato un grafico che mostra come varia nel tempo il numero di progetti di ogni"
+         " macro-settore. Tale grafico è utile per effettuare un confronto tra i diversi macro-settori al fine "
+         "di individuare su quali l'Università Federico II si è focalizzata maggiormente.")
 
 
 # Query per conteggio macro-categorie nel tempo
@@ -116,9 +118,13 @@ for field in field_names:
 # Mostra il grafico in Streamlit
 st.plotly_chart(fig, use_container_width=True)
 
-st.write("-------------------------------------------------------")
+st.divider()
 st.header("Healthcare")
-st.write("Introduzione ai progetti Healthcare")
+st.write("In questo settore vengono effettuate le analisi inerenti ai progetti sull'Healthcare. "
+         "Innanzitutto possiamo visualizzare la percentuale di progetti effettuati nel campo medico e, "
+         "sulla base di questi, andiamo a considerare la percentuale specifica di progetti incentrati sul cancro. "
+         "Successivamente troviamo le analisi sul cancro, mostrando il numero di progetti e i fondi investiti "
+         "per ogni tipologia.")
 
 # Esecuzione della query per numero totale progetti
 numeroTotProgetti = conn.query("""MATCH (p:Project) RETURN count(*)""")
@@ -224,9 +230,10 @@ count_anno_chart.update_coloraxes(colorbar=dict(ticksuffix='€'))
 
 st.plotly_chart(count_anno_chart, use_container_width=True)
 
-st.write("-------------------------------------------------------")
+st.divider()
 st.header("Progetti sulla sostenibilità ambientale")
-st.write("Intro")
+st.write("In questo settore vengono effettuate le analisi inerenti ai progetti sulla sostenibilità ambientale. "
+         "Nello specifico vengono mostrati il numero di progetti e i fondi investiti per ogni campo ambientale.")
 
 query = """MATCH (p:Project)
             WHERE p.Sustainable_Goals <> 'NaN'
