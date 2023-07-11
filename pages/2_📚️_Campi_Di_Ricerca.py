@@ -1,7 +1,4 @@
-from utils import st, conn
-from streamlit_agraph import agraph, Node, Edge, Config
-import pandas as pd
-import plotly.graph_objects as go
+from utils import st, conn, px, pd, agraph, Node, Edge, Config
 import numpy as np
 from stopwords import stopwords
 from wordcloud import WordCloud
@@ -11,7 +8,6 @@ from geopy.geocoders import Nominatim
 import re
 import pycountry
 import base64
-import plotly.express as px
 
 st.set_page_config(
     page_title="Campi di Ricerca",
@@ -35,7 +31,7 @@ with col1:
             """
     query_results = conn.query(query)
     macro_fields_results = [(record['Field_Code'], record['Name']) for record in query_results]
-    selected_macro_name = st.selectbox('Seleziona il settore disciplinare:', [name[1] for name in macro_fields_results], index=10)
+    selected_macro_name = st.selectbox('Seleziona il macro-settore:', [name[1] for name in macro_fields_results], index=10)
     # Trova il Field_Code corrispondente al campo selezionato
     selected_macro_code = None
     for record in macro_fields_results:
@@ -51,7 +47,7 @@ with col2:
             """
     query_results = conn.query(query)
     micro_fields_results = [(record['Field_Code'], record['Name']) for record in query_results]
-    selected_micro_name = st.selectbox('Seleziona il dipartimento:', [name[1] for name in micro_fields_results])
+    selected_micro_name = st.selectbox('Seleziona il settore:', [name[1] for name in micro_fields_results])
     # Trova il Field_Code corrispondente al campo selezionato
     selected_micro_code = None
     for record in micro_fields_results:
@@ -132,18 +128,12 @@ with col2:
     wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(
         frequency_dictionary)
 
-    # Layout a due colonne
-    col21, col22 = st.columns([1, 3])
+    # Visualizza il tag cloud in Streamlit
+    fig, ax = plt.subplots()
+    ax.imshow(wordcloud, interpolation='bilinear')
+    ax.axis('off')
+    st.pyplot(fig)
 
-    with col21:
-        st.write("""La WordCloud permette di evidenziare i concetti più rilevanti trattati nei progetti di ricerca.
-                                """)
-    with col22:
-        # Visualizza il tag cloud in Streamlit
-        fig, ax = plt.subplots()
-        ax.imshow(wordcloud, interpolation='bilinear')
-        ax.axis('off')
-        st.pyplot(fig)
 # Configurazione per Agraph
 config = Config(width=600,
                 height=650,
@@ -482,7 +472,7 @@ with col9:
     funding_delta = float(project_info[0][2]) - funding_mean
     col91.metric("Fondi Investiti", format_compact_currency(float(project_info[0][2]), '€', 1),
                  delta=format_compact_currency(funding_delta, '€', 1), delta_color="normal",
-                 help="Viene riportato un confronto con la media dei fondi investiti nel dipartimento selezionato"
+                 help="Viene riportato un confronto con la media dei fondi investiti nel settore selezionato"
                  )
     col92.metric("Numero di Pubblicazioni", project_info[0][7].count("pub."))
 

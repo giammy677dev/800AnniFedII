@@ -1,6 +1,4 @@
-from utils import st, conn
-import plotly.express as px
-import pandas as pd
+from utils import st, conn, px, pd
 import plotly.graph_objects as go
 
 st.set_page_config(
@@ -33,12 +31,12 @@ query_results = conn.query(query)
 df = pd.DataFrame(query_results, columns=['Field_Name', 'Conteggio'])
 
 # Creare il grafico a barre orizzontale
-count_anno_chart = px.bar(df, y='Field_Name', x='Conteggio', color='Conteggio', color_continuous_scale='Turbo', orientation='h', labels={'Conteggio': 'Numero Progetti', 'Field_Name' : 'Settore Disciplinare'})
+count_anno_chart = px.bar(df, y='Field_Name', x='Conteggio', color='Conteggio', color_continuous_scale='Turbo', orientation='h', labels={'Conteggio': 'Numero Progetti', 'Field_Name' : 'Macro-settore'})
 
 # etichette del grafico
 count_anno_chart.update_layout(
     xaxis_title='Numero Progetti',
-    yaxis_title='Settore Disciplinare',
+    yaxis_title='Macro-settore',
     yaxis={'categoryorder': 'total ascending'}
 )
 
@@ -50,7 +48,8 @@ query = """MATCH (f:Field) WHERE SIZE(TRIM(f.Field_Code)) = 2 AND f.Name <> 'NaN
             """
 query_results = conn.query(query)
 macro_fields_results = [(record['Field_Code'], record['Name']) for record in query_results]
-selected_macro_name = st.selectbox('Seleziona il settore disciplinare:', [name[1] for name in macro_fields_results])
+selected_macro_name = st.selectbox('Seleziona il macro-settore:', [name[1] for name in macro_fields_results])
+
 # Trova il Field_Code corrispondente al campo selezionato
 selected_macro_code = None
 for record in macro_fields_results:
@@ -71,7 +70,7 @@ query_results = conn.query(query)
 df = pd.DataFrame(query_results, columns=['Field_Name', 'Conteggio'])
 
 # Creare il grafico a barre
-count_anno_chart = px.bar(df, y='Field_Name', x='Conteggio', color='Conteggio', color_continuous_scale='Turbo', orientation='h', labels={'Conteggio': 'Numero Progetti', 'Field_Name' : 'Dipartimento'})
+count_anno_chart = px.bar(df, y='Field_Name', x='Conteggio', color='Conteggio', color_continuous_scale='Turbo', orientation='h', labels={'Conteggio': 'Numero Progetti', 'Field_Name' : 'Settore'})
 
 # ordine del grafico
 count_anno_chart.update_layout(
